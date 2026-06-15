@@ -1,0 +1,109 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--gray);
+  cursor: pointer;
+  padding: 4px;
+  transition: color var(--transition);
+}
+.closeBtn:hover { color: var(--white); }
+
+.availRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--gray);
+  background: var(--dark-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+.availRow strong { color: var(--pink); }
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: var(--gray); font-weight: 600; letter-spacing: 0.5px; }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.disclaimer {
+  font-size: 11px;
+  color: var(--gray-2);
+  text-align: center;
+  padding: 8px;
+  background: var(--dark-2);
+  border-radius: var(--radius);
+}
+
+.actions { display: flex; gap: 10px; margin-top: 4px; }
+
+.cancelBtn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--gray);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.cancelBtn:hover { color: var(--white); border-color: var(--white); }
+
+.submitBtn {
+  flex: 2;
+  padding: 12px;
+  background: var(--pink);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.submitBtn:hover:not(:disabled) { background: var(--pink-dim); }
+.submitBtn:disabled { opacity: 0.5; cursor: not-allowed; }
