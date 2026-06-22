@@ -1,9 +1,9 @@
 $csvPath = "LimitWear_Project_Board_Import_v1.0.csv"
 
-$items = Import-Csv $csvPath
+$items = Import-Csv $csvPath -Encoding UTF8
 
 foreach ($item in $items) {
-    $title = "$($item.ID) — $($item.Title)"
+    $title = "$($item.ID) - $($item.Title)"
 
     $body = @"
 ## Goal
@@ -48,13 +48,17 @@ $($item.'Testing Notes')
         $labels += "area: $($item.Area)"
     }
 
-    $labelArgs = ""
+    $tempBodyFile = New-TemporaryFile
+    Set-Content -Path $tempBodyFile -Value $body -Encoding UTF8
+
+    $argsList = @("issue", "create", "--title", $title, "--body-file", $tempBodyFile)
+
     foreach ($label in $labels) {
-        $labelArgs += " --label `"$label`""
+        $argsList += @("--label", $label)
     }
 
-    $command = "gh issue create --title `"$title`" --body `"$body`"$labelArgs"
-
     Write-Host "Creating issue: $title"
-    Invoke-Expression $command
+    & gh @argsList
+
+    Remove-Item $tempBodyFile -Force
 }
