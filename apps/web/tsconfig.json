@@ -19,6 +19,8 @@
       }
     ],
     "paths": {
+      "@limitwear/shared": ["../../packages/shared/src"],
+      "@limitwear/shared/*": ["../../packages/shared/src/*"],
       "@/*": ["./src/*"]
     }
   },
