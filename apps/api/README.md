@@ -11,6 +11,9 @@ npm run start:dev
 
 The API listens on `PORT` from `.env`, or port `5000` by default.
 
+Set the MongoDB connection string with `DATABASE_URL`. The legacy `MONGO_URI`
+name is supported temporarily for local development.
+
 ## Health check
 
 ```http
