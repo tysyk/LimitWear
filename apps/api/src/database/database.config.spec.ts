@@ -22,8 +22,6 @@ describe('getDatabaseUrl', () => {
   it('throws a clear error when the connection string is missing', () => {
     const configService = new ConfigService();
 
-    expect(() => getDatabaseUrl(configService)).toThrow(
-      'MongoDB connection string is missing',
-    );
+    expect(() => getDatabaseUrl(configService)).toThrow('MongoDB connection string is missing');
   });
 });

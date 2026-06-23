@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import "./globals.css";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: "LimitWear",
-    template: "%s | LimitWear",
+    default: 'LimitWear',
+    template: '%s | LimitWear',
   },
-  description: "Платформа лімітованого одягу та незалежних дизайнерів.",
+  description: 'Платформа лімітованого одягу та незалежних дизайнерів.',
 };
 
 export default function RootLayout({

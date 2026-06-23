@@ -28,9 +28,7 @@ const databaseLogger = new Logger('Database');
           });
         },
         connectionErrorFactory: (error: Error) => {
-          databaseLogger.error(
-            `Unable to connect to MongoDB: ${error.message}`,
-          );
+          databaseLogger.error(`Unable to connect to MongoDB: ${error.message}`);
           return error;
         },
       }),
