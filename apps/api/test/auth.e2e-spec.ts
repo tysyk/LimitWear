@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole, UserStatus } from '@limitwear/shared';
@@ -8,6 +9,7 @@ import { PublicUser, UsersService } from '../src/users/users.service';
 import { AUTH_COOKIE_NAME, AuthService } from '../src/auth/auth.service';
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthGuard } from '../src/auth/guards/auth.guard';
+import { createCorsOptions } from '../src/app.cors';
 
 interface AuthPayload {
   email: string;
@@ -59,6 +61,9 @@ describe('AuthController (e2e)', () => {
   let jwtService: {
     verifyAsync: jest.Mock;
   };
+  let configService: {
+    get: jest.Mock<string | undefined, [string]>;
+  };
   let usersService: {
     findById: jest.Mock;
   };
@@ -93,6 +98,16 @@ describe('AuthController (e2e)', () => {
     jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-id' }),
     };
+    configService = {
+      get: jest.fn((key: string) => {
+        const values: Record<string, string | undefined> = {
+          CORS_ORIGINS: 'http://localhost:3000',
+          NODE_ENV: 'development',
+        };
+
+        return values[key];
+      }),
+    };
     usersService = {
       findById: jest.fn().mockResolvedValue(publicUser),
     };
@@ -110,6 +125,10 @@ describe('AuthController (e2e)', () => {
           useValue: jwtService,
         },
         {
+          provide: ConfigService,
+          useValue: configService,
+        },
+        {
           provide: UsersService,
           useValue: usersService,
         },
@@ -117,6 +136,7 @@ describe('AuthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.enableCors(createCorsOptions(configService as unknown as ConfigService));
     await app.init();
   });
 
@@ -159,6 +179,17 @@ describe('AuthController (e2e)', () => {
     expect(response.headers['set-cookie']).toEqual(
       expect.arrayContaining([expect.stringContaining(`${AUTH_COOKIE_NAME}=session-token`)]),
     );
+  });
+
+  it('allows credentialed CORS preflight requests from the web app', async () => {
+    await request(app.getHttpServer())
+      .options('/auth/login')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'content-type')
+      .expect(204)
+      .expect('Access-Control-Allow-Origin', 'http://localhost:3000')
+      .expect('Access-Control-Allow-Credentials', 'true');
   });
 
   it('returns the current user for an authenticated request', async () => {
