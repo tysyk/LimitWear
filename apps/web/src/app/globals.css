@@ -55,14 +55,22 @@ a {
   letter-spacing: -0.02em;
 }
 
-.phase-label {
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   color: var(--muted);
+}
+
+.site-nav a:hover {
+  color: var(--foreground);
 }
 
 .site-main {
   display: grid;
   min-height: calc(100vh - 152px);
   place-items: center;
+  padding: 48px 0;
 }
 
 .hero {
@@ -94,6 +102,41 @@ a {
   color: var(--muted);
   font-size: clamp(1rem, 2vw, 1.3rem);
   line-height: 1.55;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid var(--foreground);
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button--secondary {
+  background: transparent;
+  color: var(--foreground);
 }
 
 .status-card {
@@ -129,6 +172,101 @@ a {
   box-shadow: 0 0 0 5px rgba(231, 75, 43, 0.14);
 }
 
+.auth-card {
+  display: grid;
+  width: min(100% - 48px, 520px);
+  gap: 18px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.auth-card__header {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.auth-card h1 {
+  font-size: clamp(2.4rem, 8vw, 4.4rem);
+  letter-spacing: -0.065em;
+  line-height: 0.95;
+}
+
+.auth-card p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-card input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.auth-card input:focus {
+  border-color: var(--foreground);
+  outline: none;
+}
+
+.form-error {
+  padding: 12px 14px;
+  border: 1px solid rgba(231, 75, 43, 0.34);
+  border-radius: 14px;
+  background: rgba(231, 75, 43, 0.08);
+  color: var(--accent) !important;
+}
+
+.auth-switch a {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.profile-card {
+  width: min(100% - 48px, 720px);
+}
+
+.profile-list {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-list div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-list dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-list dd {
+  overflow-wrap: anywhere;
+}
+
 .site-footer {
   min-height: 72px;
   border-top: 1px solid var(--line);
@@ -143,11 +281,16 @@ a {
   }
 
   .site-header {
-    min-height: 64px;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    min-height: 76px;
   }
 
   .site-main {
-    min-height: calc(100vh - 128px);
+    min-height: calc(100vh - 140px);
+    padding: 32px 0;
   }
 
   .hero {
@@ -161,6 +304,17 @@ a {
   .status-card {
     align-items: flex-start;
     border-radius: 18px;
+  }
+
+  .auth-card,
+  .profile-card {
+    width: min(100% - 32px, 720px);
+    padding: 24px;
+  }
+
+  .profile-list div {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .site-footer {
