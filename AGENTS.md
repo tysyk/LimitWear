@@ -1,5 +1,12 @@
 # LimitWear Contributor Guidance
 
+## Project Baseline
+
+- Treat `docs/LimitWear_Baseline.md` as the project source of truth for product logic, business rules, data models, API structure, permissions, integrations, testing, deployment, and roadmap details.
+- Before implementing a GitHub Project task, read the matching baseline sections and follow them when the issue description is brief.
+- If a GitHub issue and the baseline conflict, stop and ask the project owner which version should win before implementing.
+- Keep the baseline updated when an approved product or technical decision changes.
+
 ## Commit Messages
 
 Use Conventional Commits for every commit:
