@@ -5,6 +5,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './guards/auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { SessionStrategy } from './strategies/session.strategy';
 
 @Module({
@@ -31,7 +32,7 @@ import { SessionStrategy } from './strategies/session.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, SessionStrategy],
+  providers: [AuthService, AuthGuard, PermissionsGuard, SessionStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}
