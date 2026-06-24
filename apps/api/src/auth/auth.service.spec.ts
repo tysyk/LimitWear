@@ -276,4 +276,16 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedException);
     expect(usersService.updateLastLoginAt).not.toHaveBeenCalled();
   });
+
+  it('returns cookie options for logout', () => {
+    expect(service.logout()).toEqual({
+      cookieOptions: {
+        httpOnly: true,
+        maxAge: 604800000,
+        path: '/',
+        sameSite: 'lax',
+        secure: false,
+      },
+    });
+  });
 });

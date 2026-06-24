@@ -81,8 +81,10 @@ export class AuthService {
     };
   }
 
-  logout(): never {
-    throw new NotImplementedException('POST /auth/logout will be implemented in LW-014');
+  logout() {
+    return {
+      cookieOptions: this.getAuthCookieOptions(),
+    };
   }
 
   getCurrentUser(): never {

@@ -30,8 +30,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Log out the current user' })
   @HttpCode(HttpStatus.OK)
   @Post('logout')
-  logout() {
-    return this.authService.logout();
+  logout(@Res({ passthrough: true }) response: Response) {
+    const { cookieOptions } = this.authService.logout();
+    response.clearCookie(AUTH_COOKIE_NAME, cookieOptions);
+
+    return { success: true };
   }
 
   @ApiCookieAuth(AUTH_COOKIE_NAME)

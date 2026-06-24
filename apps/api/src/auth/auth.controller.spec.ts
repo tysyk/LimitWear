@@ -124,12 +124,24 @@ describe('AuthController', () => {
     expect(service.login.mock.calls).toHaveLength(1);
   });
 
-  it('exposes logout placeholder', () => {
-    service.logout.mockImplementation(() => {
-      throw new NotImplementedException();
+  it('exposes logout endpoint and clears the auth cookie', () => {
+    const cookieOptions = {
+      httpOnly: true,
+      maxAge: 604800000,
+      path: '/',
+      sameSite: 'lax' as const,
+      secure: false,
+    };
+    const clearCookie = jest.fn();
+    const response = {
+      clearCookie,
+    } as unknown as Response;
+    service.logout.mockReturnValue({
+      cookieOptions,
     });
 
-    expect(() => controller.logout()).toThrow(NotImplementedException);
+    expect(controller.logout(response)).toEqual({ success: true });
+    expect(clearCookie).toHaveBeenCalledWith(AUTH_COOKIE_NAME, cookieOptions);
     expect(service.logout.mock.calls).toHaveLength(1);
   });
 
