@@ -3,15 +3,28 @@ import {
   ConflictException,
   Injectable,
   NotImplementedException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { hash } from 'bcryptjs';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { UserStatus } from '@limitwear/shared';
+import { compare, hash } from 'bcryptjs';
+import type { CookieOptions } from 'express';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
+export const AUTH_COOKIE_NAME = 'limitwear_session';
+const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
+
 @Injectable()
 export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async register(registerDto: RegisterDto) {
     const normalizedEmail = this.normalizeEmail(registerDto.email);
@@ -36,9 +49,36 @@ export class AuthService {
     return { user };
   }
 
-  login(loginDto: LoginDto): never {
-    void loginDto;
-    throw new NotImplementedException('POST /auth/login will be implemented in LW-013');
+  async login(loginDto: LoginDto) {
+    const normalizedEmail = this.normalizeEmail(loginDto.email);
+    const password = this.normalizeRequiredString(loginDto.password);
+    this.validateEmail(normalizedEmail);
+
+    const userWithPasswordHash =
+      await this.usersService.findByEmailWithPasswordHash(normalizedEmail);
+
+    if (!userWithPasswordHash) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
+    const isPasswordValid = await compare(password, userWithPasswordHash.passwordHash);
+
+    if (!isPasswordValid || userWithPasswordHash.status !== UserStatus.Active) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
+    const user = await this.usersService.updateLastLoginAt(userWithPasswordHash.id, new Date());
+    const sessionToken = await this.jwtService.signAsync({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      user,
+      sessionToken,
+      cookieOptions: this.getAuthCookieOptions(),
+    };
   }
 
   logout(): never {
@@ -86,5 +126,15 @@ export class AuthService {
     if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
       throw new BadRequestException('Password must contain letters and numbers');
     }
+  }
+
+  private getAuthCookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
+      path: '/',
+      sameSite: 'lax',
+      secure: this.configService.get<string>('NODE_ENV') === 'production',
+    };
   }
 }

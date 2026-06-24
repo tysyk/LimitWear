@@ -1,20 +1,41 @@
-import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { UserRole, UserStatus } from '@limitwear/shared';
-import { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: jest.Mocked<Pick<UsersService, 'findByEmail' | 'createUser'>>;
+  let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
+  let jwtService: jest.Mocked<Pick<JwtService, 'signAsync'>>;
+  let usersService: jest.Mocked<
+    Pick<
+      UsersService,
+      'createUser' | 'findByEmail' | 'findByEmailWithPasswordHash' | 'updateLastLoginAt'
+    >
+  >;
 
   beforeEach(() => {
+    configService = {
+      get: jest.fn().mockReturnValue('development'),
+    };
+    jwtService = {
+      signAsync: jest.fn().mockResolvedValue('session-token'),
+    };
     usersService = {
-      findByEmail: jest.fn(),
       createUser: jest.fn(),
+      findByEmail: jest.fn(),
+      findByEmailWithPasswordHash: jest.fn(),
+      updateLastLoginAt: jest.fn(),
     };
 
-    service = new AuthService(usersService as unknown as UsersService);
+    service = new AuthService(
+      usersService as unknown as UsersService,
+      jwtService as unknown as JwtService,
+      configService as unknown as ConfigService,
+    );
   });
 
   it('registers a user with normalized email and a hashed password', async () => {
@@ -105,12 +126,154 @@ describe('AuthService', () => {
     expect(usersService.createUser).not.toHaveBeenCalled();
   });
 
-  it('keeps login placeholder for LW-013', () => {
-    expect(() =>
+  it('logs in active users with normalized email and updates lastLoginAt', async () => {
+    const passwordHash = await hash('Password1', 12);
+    const lastLoginAt = new Date('2026-06-24T09:00:00.000Z');
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+    usersService.updateLastLoginAt.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      lastLoginAt,
+    });
+
+    await expect(
+      service.login({
+        email: ' USER@Example.COM ',
+        password: 'Password1',
+      }),
+    ).resolves.toEqual({
+      user: {
+        id: 'user-id',
+        email: 'user@example.com',
+        role: UserRole.User,
+        permissions: [],
+        status: UserStatus.Active,
+        isEmailVerified: false,
+        isPhoneVerified: false,
+        lastLoginAt,
+      },
+      sessionToken: 'session-token',
+      cookieOptions: {
+        httpOnly: true,
+        maxAge: 604800000,
+        path: '/',
+        sameSite: 'lax',
+        secure: false,
+      },
+    });
+    expect(usersService.findByEmailWithPasswordHash).toHaveBeenCalledWith('user@example.com');
+    expect(usersService.updateLastLoginAt.mock.calls[0][0]).toBe('user-id');
+    expect(jwtService.signAsync).toHaveBeenCalledWith({
+      sub: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+    });
+  });
+
+  it('uses secure auth cookie settings in production', async () => {
+    configService.get.mockReturnValue('production');
+    const passwordHash = await hash('Password1', 12);
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+    usersService.updateLastLoginAt.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+
+    await expect(
       service.login({
         email: 'user@example.com',
         password: 'Password1',
       }),
-    ).toThrow(NotImplementedException);
+    ).resolves.toMatchObject({
+      cookieOptions: {
+        secure: true,
+      },
+    });
+  });
+
+  it('rejects unknown users with a generic error', async () => {
+    usersService.findByEmailWithPasswordHash.mockResolvedValue(null);
+
+    await expect(
+      service.login({
+        email: 'user@example.com',
+        password: 'Password1',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(usersService.updateLastLoginAt).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects wrong passwords with a generic error', async () => {
+    const passwordHash = await hash('Password1', 12);
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+
+    await expect(
+      service.login({
+        email: 'user@example.com',
+        password: 'WrongPassword1',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(usersService.updateLastLoginAt).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects inactive users with a generic error', async () => {
+    const passwordHash = await hash('Password1', 12);
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Blocked,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+
+    await expect(
+      service.login({
+        email: 'user@example.com',
+        password: 'Password1',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(usersService.updateLastLoginAt).not.toHaveBeenCalled();
   });
 });

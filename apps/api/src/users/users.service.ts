@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserRole, UserStatus } from '@limitwear/shared';
 import { Model } from 'mongoose';
@@ -27,6 +27,10 @@ export interface PublicUser {
   lastLoginAt?: Date;
 }
 
+export interface UserWithPasswordHash extends PublicUser {
+  passwordHash: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
@@ -34,6 +38,27 @@ export class UsersService {
   async findByEmail(email: string): Promise<PublicUser | null> {
     const user = await this.userModel.findOne({ email: this.normalizeEmail(email) }).exec();
     return user ? this.toPublicUser(user) : null;
+  }
+
+  async findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHash | null> {
+    const user = await this.userModel
+      .findOne({ email: this.normalizeEmail(email) })
+      .select('+passwordHash')
+      .exec();
+
+    return user ? { ...this.toPublicUser(user), passwordHash: user.passwordHash } : null;
+  }
+
+  async updateLastLoginAt(userId: string, lastLoginAt: Date): Promise<PublicUser> {
+    const user = await this.userModel
+      .findByIdAndUpdate(userId, { lastLoginAt }, { new: true })
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException('User was not found');
+    }
+
+    return this.toPublicUser(user);
   }
 
   async createUser(input: CreateUserInput): Promise<PublicUser> {

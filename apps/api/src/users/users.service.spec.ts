@@ -1,10 +1,15 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UserRole, UserStatus } from '@limitwear/shared';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
   const createQuery = (result: unknown) => ({
     exec: jest.fn().mockResolvedValue(result),
+  });
+
+  const createSelectableQuery = (result: unknown) => ({
+    exec: jest.fn().mockResolvedValue(result),
+    select: jest.fn().mockReturnThis(),
   });
 
   const createUserDocument = () => ({
@@ -44,6 +49,82 @@ describe('UsersService', () => {
       lastLoginAt: undefined,
     });
     expect(userModel.findOne).toHaveBeenCalledWith({ email: 'user@example.com' });
+  });
+
+  it('finds users with passwordHash only when explicitly requested', async () => {
+    const userDocument = {
+      ...createUserDocument(),
+      passwordHash: 'hashed-password',
+    };
+    const query = createSelectableQuery(userDocument);
+    const userModel = {
+      findOne: jest.fn().mockReturnValue(query),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.findByEmailWithPasswordHash(' USER@Example.COM ')).resolves.toEqual({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      phone: '+380000000000',
+      telegramUsername: undefined,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      lastLoginAt: undefined,
+      passwordHash: 'hashed-password',
+    });
+    expect(userModel.findOne).toHaveBeenCalledWith({ email: 'user@example.com' });
+    expect(query.select).toHaveBeenCalledWith('+passwordHash');
+  });
+
+  it('updates lastLoginAt', async () => {
+    const lastLoginAt = new Date('2026-06-24T09:00:00.000Z');
+    const userModel = {
+      findByIdAndUpdate: jest
+        .fn()
+        .mockReturnValue(createQuery({ ...createUserDocument(), lastLoginAt })),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.updateLastLoginAt('user-id', lastLoginAt)).resolves.toEqual({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      phone: '+380000000000',
+      telegramUsername: undefined,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      lastLoginAt,
+    });
+    expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      'user-id',
+      { lastLoginAt },
+      { new: true },
+    );
+  });
+
+  it('throws NotFoundException when lastLoginAt user is missing', async () => {
+    const userModel = {
+      findByIdAndUpdate: jest.fn().mockReturnValue(createQuery(null)),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.updateLastLoginAt('missing-user-id', new Date())).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('creates public users without exposing passwordHash', async () => {
