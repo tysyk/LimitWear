@@ -8,7 +8,9 @@ import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
+  let configService: {
+    get: jest.Mock<string | undefined, [string]>;
+  };
   let jwtService: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let usersService: jest.Mocked<
     Pick<
@@ -19,7 +21,13 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     configService = {
-      get: jest.fn().mockReturnValue('development'),
+      get: jest.fn((key: string) => {
+        const values: Record<string, string | undefined> = {
+          NODE_ENV: 'development',
+        };
+
+        return values[key];
+      }),
     };
     jwtService = {
       signAsync: jest.fn().mockResolvedValue('session-token'),
@@ -185,7 +193,13 @@ describe('AuthService', () => {
   });
 
   it('uses secure auth cookie settings in production', async () => {
-    configService.get.mockReturnValue('production');
+    configService.get.mockImplementation((key: string) => {
+      const values: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+      };
+
+      return values[key];
+    });
     const passwordHash = await hash('Password1', 12);
     usersService.findByEmailWithPasswordHash.mockResolvedValue({
       id: 'user-id',
@@ -214,6 +228,93 @@ describe('AuthService', () => {
       }),
     ).resolves.toMatchObject({
       cookieOptions: {
+        secure: true,
+      },
+    });
+  });
+
+  it('supports explicit auth cookie settings from the environment', async () => {
+    configService.get.mockImplementation((key: string) => {
+      const values: Record<string, string | undefined> = {
+        COOKIE_SAME_SITE: 'strict',
+        COOKIE_SECURE: 'true',
+        NODE_ENV: 'development',
+      };
+
+      return values[key];
+    });
+    const passwordHash = await hash('Password1', 12);
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+    usersService.updateLastLoginAt.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+
+    await expect(
+      service.login({
+        email: 'user@example.com',
+        password: 'Password1',
+      }),
+    ).resolves.toMatchObject({
+      cookieOptions: {
+        sameSite: 'strict',
+        secure: true,
+      },
+    });
+  });
+
+  it('forces secure auth cookies for SameSite none', async () => {
+    configService.get.mockImplementation((key: string) => {
+      const values: Record<string, string | undefined> = {
+        COOKIE_SAME_SITE: 'none',
+        NODE_ENV: 'development',
+      };
+
+      return values[key];
+    });
+    const passwordHash = await hash('Password1', 12);
+    usersService.findByEmailWithPasswordHash.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      passwordHash,
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+    usersService.updateLastLoginAt.mockResolvedValue({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+
+    await expect(
+      service.login({
+        email: 'user@example.com',
+        password: 'Password1',
+      }),
+    ).resolves.toMatchObject({
+      cookieOptions: {
+        sameSite: 'none',
         secure: true,
       },
     });

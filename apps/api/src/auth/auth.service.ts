@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 export const AUTH_COOKIE_NAME = 'limitwear_session';
 const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
+type AuthCookieSameSite = 'lax' | 'strict' | 'none';
 
 @Injectable()
 export class AuthService {
@@ -130,12 +131,28 @@ export class AuthService {
   }
 
   private getAuthCookieOptions(): CookieOptions {
+    const sameSite = this.getAuthCookieSameSite();
+    const secure =
+      this.configService.get<string>('NODE_ENV') === 'production' ||
+      this.configService.get<string>('COOKIE_SECURE') === 'true' ||
+      sameSite === 'none';
+
     return {
       httpOnly: true,
       maxAge: AUTH_COOKIE_MAX_AGE_MS,
       path: '/',
-      sameSite: 'lax',
-      secure: this.configService.get<string>('NODE_ENV') === 'production',
+      sameSite,
+      secure,
     };
+  }
+
+  private getAuthCookieSameSite(): AuthCookieSameSite {
+    const sameSite = this.configService.get<string>('COOKIE_SAME_SITE')?.toLowerCase();
+
+    if (sameSite === 'strict' || sameSite === 'none') {
+      return sameSite;
+    }
+
+    return 'lax';
   }
 }
