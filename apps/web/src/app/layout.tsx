@@ -22,7 +22,11 @@ export default function RootLayout({
           <Link className="brand" href="/" aria-label="LimitWear — головна">
             LIMITWEAR
           </Link>
-          <span className="phase-label">MVP у розробці</span>
+          <nav className="site-nav" aria-label="Основна навігація">
+            <Link href="/register">Register</Link>
+            <Link href="/login">Login</Link>
+            <Link href="/profile">Profile</Link>
+          </nav>
         </header>
         <main className="site-main">{children}</main>
         <footer className="site-footer">

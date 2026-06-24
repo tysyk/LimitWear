@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <section className="hero">
@@ -7,11 +9,19 @@ export default function Home() {
         LimitWear об&apos;єднує незалежних дизайнерів і людей, які обирають лімітовані колекції.
         Платформа готується до запуску.
       </p>
+      <div className="hero-actions">
+        <Link className="button" href="/register">
+          Зареєструватись
+        </Link>
+        <Link className="button button--secondary" href="/login">
+          Увійти
+        </Link>
+      </div>
       <div className="status-card" aria-label="Статус розробки">
         <span className="status-dot" aria-hidden="true" />
         <div>
-          <strong>Frontend foundation ready</strong>
-          <span>Next.js · TypeScript · App Router</span>
+          <strong>Frontend auth flow ready</strong>
+          <span>Register · Login · Profile · Logout</span>
         </div>
       </div>
     </section>
