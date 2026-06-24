@@ -276,4 +276,32 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedException);
     expect(usersService.updateLastLoginAt).not.toHaveBeenCalled();
   });
+
+  it('returns cookie options for logout', () => {
+    expect(service.logout()).toEqual({
+      cookieOptions: {
+        httpOnly: true,
+        maxAge: 604800000,
+        path: '/',
+        sameSite: 'lax',
+        secure: false,
+      },
+    });
+  });
+
+  it('returns the current authenticated user', () => {
+    const user = {
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    };
+
+    expect(service.getCurrentUser(user)).toEqual({ user });
+  });
 });

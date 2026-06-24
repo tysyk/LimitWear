@@ -40,6 +40,11 @@ export class UsersService {
     return user ? this.toPublicUser(user) : null;
   }
 
+  async findById(userId: string): Promise<PublicUser | null> {
+    const user = await this.userModel.findById(userId).exec();
+    return user ? this.toPublicUser(user) : null;
+  }
+
   async findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHash | null> {
     const user = await this.userModel
       .findOne({ email: this.normalizeEmail(email) })

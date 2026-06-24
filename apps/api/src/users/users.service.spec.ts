@@ -51,6 +51,31 @@ describe('UsersService', () => {
     expect(userModel.findOne).toHaveBeenCalledWith({ email: 'user@example.com' });
   });
 
+  it('finds users by id', async () => {
+    const userModel = {
+      findById: jest.fn().mockReturnValue(createQuery(createUserDocument())),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.findById('user-id')).resolves.toEqual({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      phone: '+380000000000',
+      telegramUsername: undefined,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      lastLoginAt: undefined,
+    });
+    expect(userModel.findById).toHaveBeenCalledWith('user-id');
+  });
+
   it('finds users with passwordHash only when explicitly requested', async () => {
     const userDocument = {
       ...createUserDocument(),
