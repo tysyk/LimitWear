@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,8 +9,30 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 5000);
 
   app.enableShutdownHooks();
+  setupSwagger(app);
 
   await app.listen(port);
+}
+
+function setupSwagger(app: Awaited<ReturnType<typeof NestFactory.create>>): void {
+  const config = new DocumentBuilder()
+    .setTitle('LimitWear API')
+    .setDescription('API documentation for the LimitWear marketplace backend.')
+    .setVersion('0.1.0')
+    .addCookieAuth('limitwear_session', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'limitwear_session',
+      description: 'HttpOnly session cookie returned by POST /auth/login.',
+    })
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 }
 
 void bootstrap();
