@@ -288,4 +288,20 @@ describe('AuthService', () => {
       },
     });
   });
+
+  it('returns the current authenticated user', () => {
+    const user = {
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    };
+
+    expect(service.getCurrentUser(user)).toEqual({ user });
+  });
 });

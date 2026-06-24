@@ -1,10 +1,11 @@
-import { NotImplementedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole, UserStatus } from '@limitwear/shared';
 import type { Response } from 'express';
 import { AUTH_COOKIE_NAME } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthGuard } from './guards/auth.guard';
+import type { AuthenticatedRequest } from './types/authenticated-request';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -24,7 +25,12 @@ describe('AuthController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({
+        canActivate: jest.fn().mockReturnValue(true),
+      })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
     service = module.get(AuthService);
@@ -145,12 +151,28 @@ describe('AuthController', () => {
     expect(service.logout.mock.calls).toHaveLength(1);
   });
 
-  it('exposes current user placeholder', () => {
-    service.getCurrentUser.mockImplementation(() => {
-      throw new NotImplementedException();
+  it('exposes current user endpoint', () => {
+    const request = {
+      user: {
+        id: 'user-id',
+        email: 'user@example.com',
+        role: UserRole.User,
+        permissions: [],
+        status: UserStatus.Active,
+        firstName: 'Test',
+        lastName: 'User',
+        isEmailVerified: false,
+        isPhoneVerified: false,
+      },
+    } as unknown as AuthenticatedRequest;
+    service.getCurrentUser.mockReturnValue({
+      user: request.user,
     });
 
-    expect(() => controller.me()).toThrow(NotImplementedException);
+    expect(controller.me(request)).toEqual({
+      user: request.user,
+    });
+    expect(service.getCurrentUser.mock.calls[0][0]).toBe(request.user);
     expect(service.getCurrentUser.mock.calls).toHaveLength(1);
   });
 });

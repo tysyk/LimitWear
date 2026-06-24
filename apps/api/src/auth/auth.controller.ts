@@ -1,9 +1,21 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AUTH_COOKIE_NAME, AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AuthGuard } from './guards/auth.guard';
+import type { AuthenticatedRequest } from './types/authenticated-request';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -39,8 +51,9 @@ export class AuthController {
 
   @ApiCookieAuth(AUTH_COOKIE_NAME)
   @ApiOperation({ summary: 'Get the current user' })
+  @UseGuards(AuthGuard)
   @Get('me')
-  me() {
-    return this.authService.getCurrentUser();
+  me(@Req() request: AuthenticatedRequest) {
+    return this.authService.getCurrentUser(request.user);
   }
 }

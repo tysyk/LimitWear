@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  NotImplementedException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@limitwear/shared';
 import { compare, hash } from 'bcryptjs';
 import type { CookieOptions } from 'express';
-import { UsersService } from '../users/users.service';
+import { PublicUser, UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -87,8 +86,8 @@ export class AuthService {
     };
   }
 
-  getCurrentUser(): never {
-    throw new NotImplementedException('GET /auth/me will be implemented in LW-015');
+  getCurrentUser(user: PublicUser) {
+    return { user };
   }
 
   private normalizeEmail(email: string): string {
