@@ -5,6 +5,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './guards/auth.guard';
+import { OwnerGuard } from './guards/owner.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { SessionStrategy } from './strategies/session.strategy';
 
@@ -32,7 +33,7 @@ import { SessionStrategy } from './strategies/session.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, PermissionsGuard, SessionStrategy],
-  exports: [AuthService],
+  providers: [AuthService, AuthGuard, OwnerGuard, PermissionsGuard, SessionStrategy],
+  exports: [AuthService, AuthGuard, OwnerGuard, PermissionsGuard],
 })
 export class AuthModule {}
