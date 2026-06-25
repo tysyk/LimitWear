@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type CollectionDocument = HydratedDocument<Collection>;
 
@@ -39,18 +39,18 @@ export class Collection {
     type: [MongooseSchema.Types.ObjectId],
     default: [],
   })
-  dropIds!: MongooseSchema.Types.ObjectId[];
+  dropIds!: Types.ObjectId[];
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  primaryDesignerId?: MongooseSchema.Types.ObjectId;
+  primaryDesignerId?: Types.ObjectId;
 
   @Prop({
     type: [MongooseSchema.Types.ObjectId],
     default: [],
   })
-  designerIds!: MongooseSchema.Types.ObjectId[];
+  designerIds!: Types.ObjectId[];
 
   @Prop({
     type: String,
@@ -63,7 +63,7 @@ export class Collection {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  coverImageId?: MongooseSchema.Types.ObjectId;
+  coverImageId?: Types.ObjectId;
 
   @Prop({
     default: false,
@@ -74,12 +74,12 @@ export class Collection {
     type: MongooseSchema.Types.ObjectId,
     required: true,
   })
-  createdByUserId!: MongooseSchema.Types.ObjectId;
+  createdByUserId!: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  approvedByAdminId?: MongooseSchema.Types.ObjectId;
+  approvedByAdminId?: Types.ObjectId;
 
   @Prop()
   publishedAt?: Date;
