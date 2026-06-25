@@ -1,6 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { UserRole, UserStatus } from '@limitwear/shared';
+import { NotificationCategory, UserRole, UserStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { DesignsService } from './designs.service';
 import { DesignDocument, DesignStatus } from './schemas/design.schema';
 
@@ -27,6 +29,8 @@ describe('DesignsService', () => {
     find: jest.Mock;
     findById: jest.Mock;
   };
+  let auditService: jest.Mocked<Pick<AuditService, 'recordAdminAction'>>;
+  let notificationsService: jest.Mocked<Pick<NotificationsService, 'createForUser'>>;
 
   const userId = new Types.ObjectId().toHexString();
   const user = {
@@ -38,6 +42,12 @@ describe('DesignsService', () => {
     isEmailVerified: false,
     isPhoneVerified: false,
   };
+  const admin = {
+    ...user,
+    id: new Types.ObjectId().toHexString(),
+    email: 'admin@example.com',
+    role: UserRole.Admin,
+  };
 
   beforeEach(() => {
     designModel = {
@@ -45,7 +55,17 @@ describe('DesignsService', () => {
       find: jest.fn(),
       findById: jest.fn(),
     };
-    service = new DesignsService(designModel as unknown as Model<DesignDocument>);
+    auditService = {
+      recordAdminAction: jest.fn(),
+    };
+    notificationsService = {
+      createForUser: jest.fn(),
+    };
+    service = new DesignsService(
+      designModel as unknown as Model<DesignDocument>,
+      auditService as unknown as AuditService,
+      notificationsService as unknown as NotificationsService,
+    );
   });
 
   it('lists only designs owned by the current user', async () => {
@@ -172,6 +192,104 @@ describe('DesignsService', () => {
 
     await expect(
       service.submitDesignerDesign(user, new Types.ObjectId().toHexString()),
+    ).rejects.toThrow(BadRequestException);
+    expect(design.save).not.toHaveBeenCalled();
+  });
+
+  it('approves a design with audit and notification records', async () => {
+    const designId = new Types.ObjectId();
+    const ownerId = new Types.ObjectId(userId);
+    const design = {
+      _id: designId,
+      createdByUserId: ownerId,
+      title: 'Panther Hoodie',
+      status: DesignStatus.Submitted,
+      approvedAt: undefined as Date | undefined,
+      approvedBy: undefined as Types.ObjectId | undefined,
+      save: jest.fn().mockImplementation(function (this: { status: DesignStatus }) {
+        return Promise.resolve(this);
+      }),
+    };
+    designModel.findById.mockReturnValue(createExecQuery(design));
+
+    await expect(
+      service.reviewDesign(admin, designId.toHexString(), {
+        status: DesignStatus.Approved,
+      }),
+    ).resolves.toMatchObject({
+      status: DesignStatus.Approved,
+    });
+
+    expect(design.approvedAt).toBeInstanceOf(Date);
+    expect(design.approvedBy).toEqual(new Types.ObjectId(admin.id));
+    expect(auditService.recordAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: admin.id,
+        email: admin.email,
+      }),
+      expect.objectContaining({
+        action: 'design.approved',
+        entity: {
+          type: 'design',
+          id: designId.toHexString(),
+        },
+        old: {
+          status: DesignStatus.Submitted,
+        },
+        new: {
+          status: DesignStatus.Approved,
+          adminComment: undefined,
+          rejectionReason: undefined,
+        },
+      }),
+    );
+    expect(notificationsService.createForUser).toHaveBeenCalledWith({
+      userId: ownerId,
+      category: NotificationCategory.Design,
+      title: 'Design approved',
+      message: 'Your design "Panther Hoodie" was approved.',
+      relatedEntityType: 'design',
+      relatedEntityId: designId.toHexString(),
+      metadata: {
+        status: DesignStatus.Approved,
+      },
+    });
+  });
+
+  it('requires a rejection reason when rejecting a design', async () => {
+    const design = {
+      _id: new Types.ObjectId(),
+      createdByUserId: new Types.ObjectId(userId),
+      title: 'Panther Hoodie',
+      status: DesignStatus.Submitted,
+      save: jest.fn(),
+    };
+    designModel.findById.mockReturnValue(createExecQuery(design));
+
+    await expect(
+      service.reviewDesign(admin, design._id.toHexString(), {
+        status: DesignStatus.Rejected,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(design.save).not.toHaveBeenCalled();
+    expect(auditService.recordAdminAction).not.toHaveBeenCalled();
+    expect(notificationsService.createForUser).not.toHaveBeenCalled();
+  });
+
+  it('requires an admin comment when requesting design changes', async () => {
+    const design = {
+      _id: new Types.ObjectId(),
+      createdByUserId: new Types.ObjectId(userId),
+      title: 'Panther Hoodie',
+      status: DesignStatus.Submitted,
+      save: jest.fn(),
+    };
+    designModel.findById.mockReturnValue(createExecQuery(design));
+
+    await expect(
+      service.reviewDesign(admin, design._id.toHexString(), {
+        status: DesignStatus.NeedsChanges,
+      }),
     ).rejects.toThrow(BadRequestException);
     expect(design.save).not.toHaveBeenCalled();
   });

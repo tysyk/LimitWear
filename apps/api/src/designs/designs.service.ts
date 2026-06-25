@@ -1,8 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { NotificationCategory } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
+import { AuditService, AuditRequestContext } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { PublicUser } from '../users/users.service';
 import type { CreateDesignDto } from './dto/create-design.dto';
+import { REVIEW_DESIGN_STATUSES, ReviewDesignDto } from './dto/review-design.dto';
 import type { UpdateDesignDto } from './dto/update-design.dto';
 import { Design, DesignDocument, DesignStatus } from './schemas/design.schema';
 
@@ -10,7 +14,11 @@ const RESUBMITTABLE_STATUSES = [DesignStatus.Draft, DesignStatus.NeedsChanges] a
 
 @Injectable()
 export class DesignsService {
-  constructor(@InjectModel(Design.name) private readonly designModel: Model<DesignDocument>) {}
+  constructor(
+    @InjectModel(Design.name) private readonly designModel: Model<DesignDocument>,
+    private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findDesignerDesigns(user: PublicUser): Promise<Design[]> {
     return this.designModel
@@ -32,6 +40,17 @@ export class DesignsService {
       createdByUserId: this.toObjectId(user.id),
       status: DesignStatus.Draft,
     });
+  }
+
+  async findAdminDesigns(): Promise<Design[]> {
+    return this.designModel
+      .find()
+      .sort({
+        updatedAt: -1,
+        createdAt: -1,
+      })
+      .lean<Design[]>()
+      .exec();
   }
 
   async updateDesignerDesign(
@@ -69,12 +88,93 @@ export class DesignsService {
     return design.save();
   }
 
-  private async findOwnedDesign(user: PublicUser, designId: string): Promise<DesignDocument> {
+  async reviewDesign(
+    admin: PublicUser,
+    designId: string,
+    dto: ReviewDesignDto,
+    request?: AuditRequestContext,
+  ): Promise<Design> {
+    this.ensureReviewStatus(dto.status);
+    const design = await this.findDesignById(designId);
+    const oldStatus = design.status;
+
+    if (dto.status === DesignStatus.Rejected) {
+      this.ensureRequiredString(dto.rejectionReason ?? '', 'rejectionReason');
+    }
+
+    if (dto.status === DesignStatus.NeedsChanges) {
+      this.ensureRequiredString(dto.adminComment ?? '', 'adminComment');
+    }
+
+    design.status = dto.status;
+    design.adminComment = dto.adminComment?.trim();
+    design.rejectionReason = dto.rejectionReason?.trim();
+
+    if (dto.status === DesignStatus.Approved) {
+      design.approvedAt = new Date();
+      design.approvedBy = this.toObjectId(admin.id);
+    }
+
+    const reviewedDesign = await design.save();
+    const designEntityId = this.getDocumentId(reviewedDesign);
+    const designEntityIdString = designEntityId.toHexString();
+
+    await this.auditService.recordAdminAction(
+      {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+      },
+      {
+        action: this.getDesignReviewAction(dto.status),
+        entity: {
+          type: 'design',
+          id: designEntityIdString,
+        },
+        old: {
+          status: oldStatus,
+        },
+        new: {
+          status: reviewedDesign.status,
+          adminComment: reviewedDesign.adminComment,
+          rejectionReason: reviewedDesign.rejectionReason,
+        },
+        reason: reviewedDesign.rejectionReason ?? reviewedDesign.adminComment,
+        request,
+      },
+    );
+
+    await this.notificationsService.createForUser({
+      userId: reviewedDesign.createdByUserId,
+      category: NotificationCategory.Design,
+      title: this.getDesignReviewNotificationTitle(dto.status),
+      message: this.getDesignReviewNotificationMessage(reviewedDesign),
+      relatedEntityType: 'design',
+      relatedEntityId: designEntityIdString,
+      metadata: {
+        status: reviewedDesign.status,
+      },
+    });
+
+    return reviewedDesign;
+  }
+
+  private async findDesignById(designId: string): Promise<DesignDocument> {
     if (!Types.ObjectId.isValid(designId)) {
       throw new NotFoundException('Design was not found');
     }
 
     const design = await this.designModel.findById(designId).exec();
+
+    if (!design) {
+      throw new NotFoundException('Design was not found');
+    }
+
+    return design;
+  }
+
+  private async findOwnedDesign(user: PublicUser, designId: string): Promise<DesignDocument> {
+    const design = await this.findDesignById(designId);
 
     if (!design || design.createdByUserId.toString() !== user.id) {
       throw new NotFoundException('Design was not found');
@@ -129,6 +229,48 @@ export class DesignsService {
     if (value.trim().length === 0) {
       throw new BadRequestException(`${field} is required`);
     }
+  }
+
+  private ensureReviewStatus(status: DesignStatus): void {
+    if (!REVIEW_DESIGN_STATUSES.includes(status as (typeof REVIEW_DESIGN_STATUSES)[number])) {
+      throw new BadRequestException('Invalid design review status');
+    }
+  }
+
+  private getDesignReviewAction(status: DesignStatus): string {
+    const actions: Record<string, string> = {
+      [DesignStatus.Approved]: 'design.approved',
+      [DesignStatus.Rejected]: 'design.rejected',
+      [DesignStatus.NeedsChanges]: 'design.needs_changes',
+    };
+
+    return actions[status];
+  }
+
+  private getDesignReviewNotificationTitle(status: DesignStatus): string {
+    const titles: Record<string, string> = {
+      [DesignStatus.Approved]: 'Design approved',
+      [DesignStatus.Rejected]: 'Design rejected',
+      [DesignStatus.NeedsChanges]: 'Design needs changes',
+    };
+
+    return titles[status];
+  }
+
+  private getDesignReviewNotificationMessage(design: Design): string {
+    if (design.status === DesignStatus.Approved) {
+      return `Your design "${design.title}" was approved.`;
+    }
+
+    if (design.status === DesignStatus.Rejected) {
+      return `Your design "${design.title}" was rejected.`;
+    }
+
+    return `Your design "${design.title}" needs changes.`;
+  }
+
+  private getDocumentId(design: DesignDocument): Types.ObjectId {
+    return design._id;
   }
 
   private toObjectIds(values: string[]): Types.ObjectId[] {
