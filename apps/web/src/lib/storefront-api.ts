@@ -69,6 +69,22 @@ export async function getRelatedDrops(slug: string): Promise<StorefrontDrop[]> {
   return sendStorefrontRequest<StorefrontDrop[]>(`/drops/${encodeURIComponent(slug)}/related`);
 }
 
+export async function getCollection(slug: string): Promise<StorefrontCollection> {
+  return sendStorefrontRequest<StorefrontCollection>(`/collections/${encodeURIComponent(slug)}`);
+}
+
+export async function getCollectionDrops(slug: string): Promise<StorefrontDrop[]> {
+  return sendStorefrontRequest<StorefrontDrop[]>(`/collections/${encodeURIComponent(slug)}/drops`);
+}
+
+export async function getDesigner(slug: string): Promise<StorefrontDesigner> {
+  return sendStorefrontRequest<StorefrontDesigner>(`/designers/${encodeURIComponent(slug)}`);
+}
+
+export async function getDesignerDrops(slug: string): Promise<StorefrontDrop[]> {
+  return sendStorefrontRequest<StorefrontDrop[]>(`/designers/${encodeURIComponent(slug)}/drops`);
+}
+
 async function sendStorefrontRequest<TResponse>(path: string): Promise<TResponse> {
   const response = await fetch(`${API_URL}${path}`, {
     cache: 'no-store',
