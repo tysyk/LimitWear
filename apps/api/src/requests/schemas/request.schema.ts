@@ -77,6 +77,11 @@ export class Request {
   message?: string;
 
   @Prop({
+    type: MongooseSchema.Types.Mixed,
+  })
+  payload?: Record<string, unknown>;
+
+  @Prop({
     trim: true,
   })
   adminComment?: string;
