@@ -66,6 +66,16 @@ export class UsersService {
     return this.toPublicUser(user);
   }
 
+  async updateRole(userId: string, role: UserRole): Promise<PublicUser> {
+    const user = await this.userModel.findByIdAndUpdate(userId, { role }, { new: true }).exec();
+
+    if (!user) {
+      throw new NotFoundException('User was not found');
+    }
+
+    return this.toPublicUser(user);
+  }
+
   async createUser(input: CreateUserInput): Promise<PublicUser> {
     try {
       const user = await this.userModel.create({

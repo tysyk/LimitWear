@@ -13,6 +13,15 @@ type DesignerProfileWithId = DesignerProfile & {
   _id?: Types.ObjectId;
 };
 
+export interface CreateApprovedDesignerProfileInput {
+  userId: Types.ObjectId | string;
+  displayName: string;
+  slug: string;
+  bio?: string;
+  portfolioLinks?: string[];
+  approvedBy: Types.ObjectId | string;
+}
+
 @Injectable()
 export class DesignerProfilesService {
   constructor(
@@ -69,7 +78,24 @@ export class DesignerProfilesService {
       .exec();
   }
 
+  async createApprovedProfile(input: CreateApprovedDesignerProfileInput): Promise<DesignerProfile> {
+    return this.designerProfileModel.create({
+      userId: this.toObjectId(input.userId),
+      displayName: input.displayName.trim(),
+      slug: this.normalizeSlug(input.slug),
+      bio: input.bio?.trim(),
+      portfolioLinks: input.portfolioLinks ?? [],
+      status: DesignerProfileStatus.Active,
+      approvedAt: new Date(),
+      approvedBy: this.toObjectId(input.approvedBy),
+    });
+  }
+
   private normalizeSlug(slug: string): string {
     return slug.trim().toLowerCase();
+  }
+
+  private toObjectId(value: Types.ObjectId | string): Types.ObjectId {
+    return value instanceof Types.ObjectId ? value : new Types.ObjectId(value);
   }
 }
