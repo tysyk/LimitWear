@@ -9,6 +9,7 @@ import { DesignerModule } from './designer/designer.module';
 import { DesignerProfilesModule } from './designer-profiles/designer-profiles.module';
 import { DesignsModule } from './designs/designs.module';
 import { DropsModule } from './drops/drops.module';
+import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { RequestsModule } from './requests/requests.module';
 import { UsersModule } from './users/users.module';
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module';
     DesignerProfilesModule,
     DesignsModule,
     DropsModule,
+    FilesModule,
     HealthModule,
     RequestsModule,
     UsersModule,
