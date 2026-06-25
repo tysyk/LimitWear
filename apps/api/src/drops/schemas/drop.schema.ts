@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { DropStatus } from '@limitwear/shared';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type DropDocument = HydratedDocument<Drop>;
 
@@ -28,17 +28,17 @@ export class Drop {
     type: MongooseSchema.Types.ObjectId,
     required: true,
   })
-  designId!: MongooseSchema.Types.ObjectId;
+  designId!: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  designerId?: MongooseSchema.Types.ObjectId;
+  designerId?: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  collectionId?: MongooseSchema.Types.ObjectId;
+  collectionId?: Types.ObjectId;
 
   @Prop({
     required: true,
@@ -165,23 +165,23 @@ export class Drop {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  mainImageId?: MongooseSchema.Types.ObjectId;
+  mainImageId?: Types.ObjectId;
 
   @Prop({
     type: [MongooseSchema.Types.ObjectId],
     default: [],
   })
-  imageIds!: MongooseSchema.Types.ObjectId[];
+  imageIds!: Types.ObjectId[];
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  createdByAdminId?: MongooseSchema.Types.ObjectId;
+  createdByAdminId?: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  approvedByAdminId?: MongooseSchema.Types.ObjectId;
+  approvedByAdminId?: Types.ObjectId;
 }
 
 export const DropSchema = SchemaFactory.createForClass(Drop);
