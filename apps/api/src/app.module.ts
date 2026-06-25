@@ -5,8 +5,10 @@ import { AuditModule } from './audit/audit.module';
 import { CollectionsModule } from './collections/collections.module';
 import { DatabaseModule } from './database/database.module';
 import { DesignerProfilesModule } from './designer-profiles/designer-profiles.module';
+import { DesignsModule } from './designs/designs.module';
 import { DropsModule } from './drops/drops.module';
 import { HealthModule } from './health/health.module';
+import { RequestsModule } from './requests/requests.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -19,8 +21,10 @@ import { UsersModule } from './users/users.module';
     CollectionsModule,
     DatabaseModule,
     DesignerProfilesModule,
+    DesignsModule,
     DropsModule,
     HealthModule,
+    RequestsModule,
     UsersModule,
   ],
 })
