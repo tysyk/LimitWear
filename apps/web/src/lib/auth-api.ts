@@ -30,7 +30,7 @@ export interface LoginPayload {
   password: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
 export async function registerUser(payload: RegisterPayload): Promise<AuthResponse> {
   return sendAuthRequest('/auth/register', payload);
@@ -62,7 +62,10 @@ async function sendAuthRequest<TPayload extends object>(
   });
 }
 
-async function sendRequest<TResponse>(path: string, init: RequestInit = {}): Promise<TResponse> {
+export async function sendRequest<TResponse>(
+  path: string,
+  init: RequestInit = {},
+): Promise<TResponse> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: 'include',
