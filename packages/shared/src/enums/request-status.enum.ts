@@ -1,9 +1,10 @@
 export enum RequestStatus {
-  Open = 'open',
-  InReview = 'in_review',
+  Submitted = 'submitted',
+  UnderReview = 'under_review',
+  NeedsChanges = 'needs_changes',
   Approved = 'approved',
   Rejected = 'rejected',
-  NeedsChanges = 'needs_changes',
-  Resolved = 'resolved',
+  Completed = 'completed',
   Cancelled = 'cancelled',
+  Archived = 'archived',
 }
