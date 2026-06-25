@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type DesignerProfileDocument = HydratedDocument<DesignerProfile>;
 
@@ -44,7 +44,7 @@ export class DesignerProfile {
     required: true,
     unique: true,
   })
-  userId!: MongooseSchema.Types.ObjectId;
+  userId!: Types.ObjectId;
 
   @Prop({
     required: true,
@@ -68,12 +68,12 @@ export class DesignerProfile {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  avatarFileId?: MongooseSchema.Types.ObjectId;
+  avatarFileId?: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
   })
-  coverFileId?: MongooseSchema.Types.ObjectId;
+  coverFileId?: Types.ObjectId;
 
   @Prop({
     type: Map,
@@ -103,7 +103,7 @@ export class DesignerProfile {
     type: MongooseSchema.Types.ObjectId,
     ref: 'User',
   })
-  approvedBy?: MongooseSchema.Types.ObjectId;
+  approvedBy?: Types.ObjectId;
 
   @Prop({
     type: String,

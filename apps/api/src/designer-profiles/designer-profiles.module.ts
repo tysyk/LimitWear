@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { Drop, DropSchema } from '../drops/schemas/drop.schema';
+import { DesignerProfilesService } from './designer-profiles.service';
+import { DesignersController } from './designers.controller';
 import { DesignerProfile, DesignerProfileSchema } from './schemas/designer-profile.schema';
 
 @Module({
@@ -9,8 +12,14 @@ import { DesignerProfile, DesignerProfileSchema } from './schemas/designer-profi
         name: DesignerProfile.name,
         schema: DesignerProfileSchema,
       },
+      {
+        name: Drop.name,
+        schema: DropSchema,
+      },
     ]),
   ],
-  exports: [MongooseModule],
+  controllers: [DesignersController],
+  providers: [DesignerProfilesService],
+  exports: [MongooseModule, DesignerProfilesService],
 })
 export class DesignerProfilesModule {}
