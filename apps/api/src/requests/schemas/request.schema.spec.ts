@@ -18,6 +18,7 @@ describe('RequestSchema', () => {
     expect(RequestSchema.path('targetEntityId')).toBeDefined();
     expect(RequestSchema.path('title').options.required).toBe(true);
     expect(RequestSchema.path('message')).toBeDefined();
+    expect(RequestSchema.path('payload')).toBeDefined();
     expect(RequestSchema.path('adminComment')).toBeDefined();
     expect(RequestSchema.path('fileIds').options.default).toEqual([]);
     expect(RequestSchema.path('priority').options.enum).toEqual(Object.values(RequestPriority));
