@@ -523,6 +523,14 @@ a {
   color: var(--accent) !important;
 }
 
+.form-success {
+  padding: 12px 14px;
+  border: 1px solid rgba(28, 125, 75, 0.34);
+  border-radius: 14px;
+  background: rgba(28, 125, 75, 0.08);
+  color: #1c7d4b !important;
+}
+
 .auth-switch a {
   color: var(--foreground);
   font-weight: 700;
@@ -555,6 +563,89 @@ a {
 
 .profile-list dd {
   overflow-wrap: anywhere;
+}
+
+.designer-dashboard {
+  display: grid;
+  width: min(100% - 48px, 960px);
+  gap: 28px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.designer-dashboard h1 {
+  font-size: clamp(2.8rem, 8vw, 6rem);
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+}
+
+.designer-dashboard > p {
+  max-width: 680px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.designer-action-grid,
+.designer-design-list {
+  display: grid;
+  gap: 18px;
+}
+
+.designer-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.designer-page-heading,
+.designer-design-list__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.designer-form {
+  display: grid;
+  gap: 18px;
+}
+
+.designer-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.designer-form input,
+.designer-form textarea {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--foreground);
+  font: inherit;
+  resize: vertical;
+}
+
+.designer-form input:focus,
+.designer-form textarea:focus {
+  border-color: var(--foreground);
+  outline: none;
+}
+
+.designer-form .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.designer-form .checkbox-label input {
+  width: auto;
 }
 
 .site-footer {
