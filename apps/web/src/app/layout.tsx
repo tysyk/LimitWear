@@ -23,6 +23,9 @@ export default function RootLayout({
             LIMITWEAR
           </Link>
           <nav className="site-nav" aria-label="Основна навігація">
+            <Link href="/#drops">Drops</Link>
+            <Link href="/#collections">Collections</Link>
+            <Link href="/#designers">Designers</Link>
             <Link href="/register">Register</Link>
             <Link href="/login">Login</Link>
             <Link href="/profile">Profile</Link>
