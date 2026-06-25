@@ -34,6 +34,6 @@ import { SessionStrategy } from './strategies/session.strategy';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard, OwnerGuard, PermissionsGuard, SessionStrategy],
-  exports: [AuthService, AuthGuard, OwnerGuard, PermissionsGuard],
+  exports: [AuthService, AuthGuard, JwtModule, OwnerGuard, PermissionsGuard, UsersModule],
 })
 export class AuthModule {}
