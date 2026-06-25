@@ -81,7 +81,9 @@ export default async function Home() {
             {collections.map((collection) => (
               <article className="surface-card" key={collection.slug}>
                 <p className="eyebrow">{collection.featured ? 'Featured' : 'Collection'}</p>
-                <h3>{collection.title}</h3>
+                <h3>
+                  <Link href={`/collections/${collection.slug}`}>{collection.title}</Link>
+                </h3>
                 <p>{collection.description ?? 'Маркетингова група дропів LimitWear.'}</p>
               </article>
             ))}
@@ -105,7 +107,9 @@ export default async function Home() {
             {designers.map((designer) => (
               <article className="surface-card" key={designer.slug}>
                 <p className="eyebrow">Designer</p>
-                <h3>{designer.displayName}</h3>
+                <h3>
+                  <Link href={`/designers/${designer.slug}`}>{designer.displayName}</Link>
+                </h3>
                 <p>{designer.bio ?? 'Публічний профіль дизайнера LimitWear.'}</p>
               </article>
             ))}
