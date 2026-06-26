@@ -10,6 +10,8 @@ import { Model, Types } from 'mongoose';
 import { AuditRequestContext, AuditService } from '../audit/audit.service';
 import type { ApplyDesignerDto } from '../designer/dto/apply-designer.dto';
 import { DesignerProfilesService } from '../designer-profiles/designer-profiles.service';
+import { FilesService } from '../files/files.service';
+import { FileAssetCategory } from '../files/schemas/file-asset.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PublicUser, UsersService } from '../users/users.service';
 import {
@@ -30,6 +32,7 @@ export class RequestsService {
     @InjectModel(Request.name) private readonly requestModel: Model<RequestDocument>,
     private readonly auditService: AuditService,
     private readonly designerProfilesService: DesignerProfilesService,
+    private readonly filesService: FilesService,
     private readonly notificationsService: NotificationsService,
     private readonly usersService: UsersService,
   ) {}
@@ -54,7 +57,7 @@ export class RequestsService {
       throw new ConflictException('Designer application is already submitted');
     }
 
-    return this.requestModel.create({
+    const designerApplication = await this.requestModel.create({
       type: RequestType.DesignerApplication,
       status: RequestStatus.Submitted,
       createdByUserId,
@@ -67,7 +70,20 @@ export class RequestsService {
         portfolioLinks: dto.portfolioLinks ?? [],
       },
       priority: RequestPriority.Normal,
+      fileIds: [],
     });
+
+    const files = await this.filesService.attachPendingFiles({
+      userId: user.id,
+      fileIds: dto.fileIds ?? [],
+      categories: [FileAssetCategory.DesignerApplicationFile],
+      relatedEntityType: 'request',
+      relatedEntityId: this.getDocumentId(designerApplication),
+    });
+
+    designerApplication.fileIds = files.map((file) => file._id);
+
+    return designerApplication.save();
   }
 
   async reviewDesignerApplication(

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { getCurrentUser, PublicUser } from '../lib/auth-api';
-import { applyDesigner } from '../lib/designer-api';
+import { applyDesigner, getEntityId, uploadDesignerApplicationFile } from '../lib/designer-api';
 
 export function DesignerCabinet() {
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +46,17 @@ export function DesignerCabinet() {
     const formData = new FormData(event.currentTarget);
 
     try {
+      const attachmentFiles = getFiles(formData, 'attachments');
+      const uploadedFiles = await Promise.all(
+        attachmentFiles.map((file) => uploadDesignerApplicationFile(file)),
+      );
       const request = await applyDesigner({
         displayName: getFormValue(formData, 'displayName'),
         slug: getFormValue(formData, 'slug'),
         bio: getOptionalFormValue(formData, 'bio'),
         portfolioLinks: getOptionalListValue(formData, 'portfolioLinks'),
         message: getOptionalFormValue(formData, 'message'),
+        fileIds: uploadedFiles.map(getEntityId),
       });
 
       setSuccess(`Application submitted. Status: ${request.status}`);
@@ -106,6 +111,15 @@ export function DesignerCabinet() {
           <label>
             Message
             <textarea name="message" placeholder="Why do you want to join LimitWear?" rows={3} />
+          </label>
+          <label>
+            Portfolio files
+            <input
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              multiple
+              name="attachments"
+              type="file"
+            />
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
@@ -186,4 +200,10 @@ function getOptionalListValue(formData: FormData, key: string): string[] | undef
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getFiles(formData: FormData, key: string): File[] {
+  return formData
+    .getAll(key)
+    .filter((value): value is File => value instanceof File && value.size > 0);
 }

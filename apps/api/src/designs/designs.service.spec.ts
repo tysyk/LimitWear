@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { NotificationCategory, UserRole, UserStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
+import { FilesService } from '../files/files.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DesignsService } from './designs.service';
 import { DesignDocument, DesignStatus } from './schemas/design.schema';
@@ -30,6 +31,7 @@ describe('DesignsService', () => {
     findById: jest.Mock;
   };
   let auditService: jest.Mocked<Pick<AuditService, 'recordAdminAction'>>;
+  let filesService: jest.Mocked<Pick<FilesService, 'upload'>>;
   let notificationsService: jest.Mocked<Pick<NotificationsService, 'createForUser'>>;
 
   const userId = new Types.ObjectId().toHexString();
@@ -58,12 +60,16 @@ describe('DesignsService', () => {
     auditService = {
       recordAdminAction: jest.fn(),
     };
+    filesService = {
+      upload: jest.fn(),
+    };
     notificationsService = {
       createForUser: jest.fn(),
     };
     service = new DesignsService(
       designModel as unknown as Model<DesignDocument>,
       auditService as unknown as AuditService,
+      filesService as unknown as FilesService,
       notificationsService as unknown as NotificationsService,
     );
   });

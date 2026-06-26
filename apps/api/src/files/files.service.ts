@@ -25,6 +25,13 @@ export type UploadFileInput = {
   relatedEntityId?: string | Types.ObjectId;
 };
 
+export type UploadedFileData = {
+  originalName: string;
+  mimeType: string;
+  size: number;
+  body: Uint8Array;
+};
+
 @Injectable()
 export class FilesService {
   constructor(
@@ -81,6 +88,56 @@ export class FilesService {
     }
 
     return file;
+  }
+
+  async attachPendingFiles(input: {
+    userId: string;
+    fileIds: string[];
+    categories: FileAssetCategory[];
+    relatedEntityType: string;
+    relatedEntityId: string | Types.ObjectId;
+  }): Promise<FileAssetDocument[]> {
+    const uniqueFileIds = [...new Set(input.fileIds)];
+
+    if (uniqueFileIds.length === 0) {
+      return [];
+    }
+
+    if (!uniqueFileIds.every((fileId) => Types.ObjectId.isValid(fileId))) {
+      throw new BadRequestException('Invalid file id.');
+    }
+
+    const files = await this.fileAssetModel
+      .find({
+        _id: {
+          $in: uniqueFileIds.map((fileId) => new Types.ObjectId(fileId)),
+        },
+        uploadedByUserId: new Types.ObjectId(input.userId),
+        category: {
+          $in: input.categories,
+        },
+        status: FileAssetStatus.Active,
+        relatedEntityId: {
+          $exists: false,
+        },
+      })
+      .exec();
+
+    if (files.length !== uniqueFileIds.length) {
+      throw new BadRequestException('One or more files cannot be attached to this resource.');
+    }
+
+    const relatedEntityId = new Types.ObjectId(input.relatedEntityId);
+
+    await Promise.all(
+      files.map((file) => {
+        file.relatedEntityType = input.relatedEntityType;
+        file.relatedEntityId = relatedEntityId;
+        return file.save();
+      }),
+    );
+
+    return files;
   }
 
   getPublicUrl(file: Pick<FileAsset, 'storageKey' | 'visibility' | 'status'>): string {
