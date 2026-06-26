@@ -1,5 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { UserRole, UserStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
+import { FileUploadValidationService } from './file-upload-validation.service';
 import { FilesService } from './files.service';
 import {
   FileAssetCategory,
@@ -12,6 +14,7 @@ import { S3StorageService } from './s3-storage.service';
 describe('FilesService', () => {
   let service: FilesService;
   let fileAssetModel: { create: jest.Mock; findById: jest.Mock };
+  let fileUploadValidationService: jest.Mocked<Pick<FileUploadValidationService, 'validate'>>;
   let storageService: jest.Mocked<
     Pick<
       S3StorageService,
@@ -24,6 +27,9 @@ describe('FilesService', () => {
       create: jest.fn(),
       findById: jest.fn(),
     };
+    fileUploadValidationService = {
+      validate: jest.fn(),
+    };
     storageService = {
       createStorageKey: jest.fn().mockReturnValue('design_original/unique-file.png'),
       getBucket: jest.fn().mockReturnValue('limitwear-dev'),
@@ -33,6 +39,7 @@ describe('FilesService', () => {
     };
     service = new FilesService(
       fileAssetModel as unknown as Model<FileAssetDocument>,
+      fileUploadValidationService as unknown as FileUploadValidationService,
       storageService as unknown as S3StorageService,
     );
   });
@@ -47,17 +54,22 @@ describe('FilesService', () => {
         originalName: 'hoodie-art.png',
         extension: 'png',
         mimeType: 'image/png',
-        size: 12,
-        body: new Uint8Array([1, 2, 3]),
+        size: 8,
+        body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]),
         visibility: FileVisibility.Private,
         category: FileAssetCategory.DesignOriginal,
         uploadedByUserId: userId,
+        actor: {
+          id: userId,
+          role: UserRole.Designer,
+          status: UserStatus.Active,
+        },
       }),
     ).resolves.toBe(createdFile);
 
     expect(storageService.uploadObject).toHaveBeenCalledWith({
       storageKey: 'design_original/unique-file.png',
-      body: new Uint8Array([1, 2, 3]),
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]),
       mimeType: 'image/png',
       visibility: FileVisibility.Private,
     });
@@ -70,6 +82,7 @@ describe('FilesService', () => {
         status: FileAssetStatus.Active,
       }),
     );
+    expect(fileUploadValidationService.validate).toHaveBeenCalled();
   });
 
   it('soft deletes metadata without removing the physical object immediately', async () => {

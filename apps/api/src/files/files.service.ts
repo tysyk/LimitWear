@@ -8,6 +8,7 @@ import {
   FileAssetStatus,
   FileVisibility,
 } from './schemas/file-asset.schema';
+import { FileUploadActor, FileUploadValidationService } from './file-upload-validation.service';
 import { S3StorageService } from './s3-storage.service';
 
 export type UploadFileInput = {
@@ -19,6 +20,7 @@ export type UploadFileInput = {
   visibility: FileVisibility;
   category: FileAssetCategory;
   uploadedByUserId: string | Types.ObjectId;
+  actor: FileUploadActor;
   relatedEntityType?: string;
   relatedEntityId?: string | Types.ObjectId;
 };
@@ -28,10 +30,16 @@ export class FilesService {
   constructor(
     @InjectModel(FileAsset.name)
     private readonly fileAssetModel: Model<FileAssetDocument>,
+    private readonly fileUploadValidationService: FileUploadValidationService,
     private readonly storageService: S3StorageService,
   ) {}
 
   async upload(input: UploadFileInput): Promise<FileAssetDocument> {
+    this.fileUploadValidationService.validate({
+      ...input,
+      uploadedByUserId: input.uploadedByUserId.toString(),
+    });
+
     const storageKey = this.storageService.createStorageKey(input.category, input.extension);
 
     await this.storageService.uploadObject({
