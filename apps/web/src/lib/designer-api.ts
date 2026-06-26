@@ -6,6 +6,7 @@ export interface DesignerApplicationPayload {
   bio?: string;
   portfolioLinks?: string[];
   message?: string;
+  fileIds?: string[];
 }
 
 export interface DesignPayload {
@@ -39,6 +40,14 @@ export interface DesignerDesign {
   updatedAt?: string;
 }
 
+export interface FileAsset {
+  id?: string;
+  _id?: string;
+  originalName: string;
+  category: string;
+  visibility: string;
+}
+
 export async function applyDesigner(payload: DesignerApplicationPayload): Promise<DesignerRequest> {
   return sendRequest<DesignerRequest>('/designer/apply', {
     body: JSON.stringify(payload),
@@ -65,6 +74,28 @@ export async function submitDesignerDesign(designId: string): Promise<DesignerDe
   });
 }
 
+export async function uploadDesignerApplicationFile(file: File): Promise<FileAsset> {
+  return sendFile<FileAsset>('/designer/application-files', file);
+}
+
+export async function uploadDesignerDesignFile(
+  designId: string,
+  category: 'design_original' | 'design_preview' | 'mockup',
+  file: File,
+): Promise<FileAsset> {
+  return sendFile<FileAsset>(`/designer/designs/${designId}/files/${category}`, file);
+}
+
 export function getEntityId(entity: { id?: string; _id?: string }): string {
   return entity.id ?? entity._id ?? '';
+}
+
+async function sendFile<TResponse>(path: string, file: File): Promise<TResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return sendRequest<TResponse>(path, {
+    body: formData,
+    method: 'POST',
+  });
 }

@@ -4,6 +4,12 @@ import { NotificationCategory } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { AuditService, AuditRequestContext } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FilesService, UploadedFileData } from '../files/files.service';
+import {
+  FileAssetCategory,
+  FileAssetDocument,
+  FileVisibility,
+} from '../files/schemas/file-asset.schema';
 import type { PublicUser } from '../users/users.service';
 import type { CreateDesignDto } from './dto/create-design.dto';
 import { REVIEW_DESIGN_STATUSES, ReviewDesignDto } from './dto/review-design.dto';
@@ -17,6 +23,7 @@ export class DesignsService {
   constructor(
     @InjectModel(Design.name) private readonly designModel: Model<DesignDocument>,
     private readonly auditService: AuditService,
+    private readonly filesService: FilesService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -86,6 +93,31 @@ export class DesignsService {
     design.submittedAt = new Date();
 
     return design.save();
+  }
+
+  async uploadDesignerFile(
+    user: PublicUser,
+    designId: string,
+    category: FileAssetCategory,
+    file: UploadedFileData,
+  ): Promise<FileAssetDocument> {
+    const design = await this.findOwnedDesign(user, designId);
+    const visibility = this.getDesignerFileVisibility(category);
+    const uploadedFile = await this.filesService.upload({
+      ...file,
+      extension: this.getExtension(file.originalName),
+      visibility,
+      category,
+      uploadedByUserId: user.id,
+      actor: user,
+      relatedEntityType: 'design',
+      relatedEntityId: design._id,
+    });
+
+    this.attachFileToDesign(design, uploadedFile, category);
+    await design.save();
+
+    return uploadedFile;
   }
 
   async reviewDesign(
@@ -271,6 +303,43 @@ export class DesignsService {
 
   private getDocumentId(design: DesignDocument): Types.ObjectId {
     return design._id;
+  }
+
+  private getDesignerFileVisibility(category: FileAssetCategory): FileVisibility {
+    const visibilityByCategory: Partial<Record<FileAssetCategory, FileVisibility>> = {
+      [FileAssetCategory.DesignOriginal]: FileVisibility.Private,
+      [FileAssetCategory.DesignPreview]: FileVisibility.Public,
+      [FileAssetCategory.Mockup]: FileVisibility.Public,
+    };
+    const visibility = visibilityByCategory[category];
+
+    if (!visibility) {
+      throw new BadRequestException('This file category cannot be uploaded to a designer draft.');
+    }
+
+    return visibility;
+  }
+
+  private attachFileToDesign(
+    design: DesignDocument,
+    file: FileAssetDocument,
+    category: FileAssetCategory,
+  ): void {
+    if (category === FileAssetCategory.DesignOriginal) {
+      design.mainFileId = file._id;
+      return;
+    }
+
+    if (category === FileAssetCategory.DesignPreview) {
+      design.previewImageIds.push(file._id);
+      return;
+    }
+
+    design.mockupImageIds.push(file._id);
+  }
+
+  private getExtension(originalName: string): string {
+    return originalName.split('.').pop()?.toLowerCase() ?? '';
   }
 
   private toObjectIds(values: string[]): Types.ObjectId[] {

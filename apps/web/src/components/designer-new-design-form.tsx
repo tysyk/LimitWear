@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { getCurrentUser, PublicUser } from '../lib/auth-api';
-import { createDesignerDesign, getEntityId, submitDesignerDesign } from '../lib/designer-api';
+import {
+  createDesignerDesign,
+  getEntityId,
+  submitDesignerDesign,
+  uploadDesignerDesignFile,
+} from '../lib/designer-api';
 
 export function DesignerNewDesignForm() {
   const router = useRouter();
@@ -53,9 +58,20 @@ export function DesignerNewDesignForm() {
         category: getOptionalFormValue(formData, 'category'),
         tags: getOptionalListValue(formData, 'tags'),
       });
+      const designId = getEntityId(design);
+
+      await uploadOptionalFile(formData, 'originalFile', (file) =>
+        uploadDesignerDesignFile(designId, 'design_original', file),
+      );
+      await uploadFiles(formData, 'previewFiles', (file) =>
+        uploadDesignerDesignFile(designId, 'design_preview', file),
+      );
+      await uploadFiles(formData, 'mockupFiles', (file) =>
+        uploadDesignerDesignFile(designId, 'mockup', file),
+      );
 
       if (formData.get('submitNow') === 'on') {
-        await submitDesignerDesign(getEntityId(design));
+        await submitDesignerDesign(designId);
       }
 
       router.push('/designer/designs');
@@ -120,6 +136,27 @@ export function DesignerNewDesignForm() {
           Tags
           <textarea name="tags" placeholder="hoodie, embroidery, black" rows={3} />
         </label>
+        <label>
+          Original design file
+          <input
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            name="originalFile"
+            type="file"
+          />
+        </label>
+        <label>
+          Preview images
+          <input
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            name="previewFiles"
+            type="file"
+          />
+        </label>
+        <label>
+          Mockup images
+          <input accept="image/jpeg,image/png,image/webp" multiple name="mockupFiles" type="file" />
+        </label>
         <label className="checkbox-label">
           <input name="submitNow" type="checkbox" />
           Submit for admin review immediately
@@ -176,4 +213,28 @@ function getOptionalListValue(formData: FormData, key: string): string[] | undef
     .split(/\r?\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function uploadOptionalFile(
+  formData: FormData,
+  key: string,
+  upload: (file: File) => Promise<unknown>,
+) {
+  const file = formData.get(key);
+
+  if (file instanceof File && file.size > 0) {
+    await upload(file);
+  }
+}
+
+async function uploadFiles(
+  formData: FormData,
+  key: string,
+  upload: (file: File) => Promise<unknown>,
+) {
+  const files = formData
+    .getAll(key)
+    .filter((value): value is File => value instanceof File && value.size > 0);
+
+  await Promise.all(files.map(upload));
 }

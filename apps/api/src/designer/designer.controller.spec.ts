@@ -2,6 +2,7 @@ import { UserRole, UserStatus } from '@limitwear/shared';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { DesignerController } from './designer.controller';
 import { DesignsService } from '../designs/designs.service';
+import { FilesService } from '../files/files.service';
 import { RequestsService } from '../requests/requests.service';
 
 describe('DesignerController', () => {
@@ -16,6 +17,7 @@ describe('DesignerController', () => {
       | 'updateDesignerDesign'
     >
   >;
+  let filesService: jest.Mocked<Pick<FilesService, 'upload'>>;
 
   const request = {
     user: {
@@ -39,9 +41,37 @@ describe('DesignerController', () => {
       submitDesignerDesign: jest.fn(),
       updateDesignerDesign: jest.fn(),
     };
+    filesService = {
+      upload: jest.fn(),
+    };
     controller = new DesignerController(
       requestsService as unknown as RequestsService,
       designsService as unknown as DesignsService,
+      filesService as unknown as FilesService,
+    );
+  });
+
+  it('uploads a designer application attachment as a private file', async () => {
+    filesService.upload.mockResolvedValue({ id: 'file-id' } as never);
+
+    await expect(
+      controller.uploadApplicationFile(
+        {
+          originalname: 'portfolio.pdf',
+          mimetype: 'application/pdf',
+          size: 4,
+          buffer: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        } as Express.Multer.File,
+        request,
+      ),
+    ).resolves.toEqual({ id: 'file-id' });
+
+    expect(filesService.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'designer_application_file',
+        extension: 'pdf',
+        visibility: 'private',
+      }),
     );
   });
 

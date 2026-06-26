@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditModule } from '../audit/audit.module';
 import { DesignerProfilesModule } from '../designer-profiles/designer-profiles.module';
+import { FilesModule } from '../files/files.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { RequestsService } from './requests.service';
@@ -11,6 +12,7 @@ import { Request, RequestSchema } from './schemas/request.schema';
   imports: [
     AuditModule,
     DesignerProfilesModule,
+    FilesModule,
     MongooseModule.forFeature([
       {
         name: Request.name,

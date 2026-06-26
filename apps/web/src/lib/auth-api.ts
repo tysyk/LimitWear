@@ -70,7 +70,7 @@ export async function sendRequest<TResponse>(
     ...init,
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...init.headers,
     },
   });

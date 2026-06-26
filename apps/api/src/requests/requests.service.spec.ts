@@ -3,6 +3,7 @@ import { NotificationCategory, RequestStatus, UserRole, UserStatus } from '@limi
 import { Model, Types } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
 import { DesignerProfilesService } from '../designer-profiles/designer-profiles.service';
+import { FilesService } from '../files/files.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { RequestsService } from './requests.service';
@@ -21,6 +22,7 @@ describe('RequestsService', () => {
   };
   let auditService: jest.Mocked<Pick<AuditService, 'recordAdminAction'>>;
   let designerProfilesService: jest.Mocked<Pick<DesignerProfilesService, 'createApprovedProfile'>>;
+  let filesService: jest.Mocked<Pick<FilesService, 'attachPendingFiles'>>;
   let notificationsService: jest.Mocked<Pick<NotificationsService, 'createForUser'>>;
   let usersService: jest.Mocked<Pick<UsersService, 'updateRole'>>;
 
@@ -53,6 +55,9 @@ describe('RequestsService', () => {
     designerProfilesService = {
       createApprovedProfile: jest.fn(),
     };
+    filesService = {
+      attachPendingFiles: jest.fn().mockResolvedValue([]),
+    };
     notificationsService = {
       createForUser: jest.fn(),
     };
@@ -63,6 +68,7 @@ describe('RequestsService', () => {
       requestModel as unknown as Model<RequestDocument>,
       auditService as unknown as AuditService,
       designerProfilesService as unknown as DesignerProfilesService,
+      filesService as unknown as FilesService,
       notificationsService as unknown as NotificationsService,
       usersService as unknown as UsersService,
     );
@@ -70,8 +76,13 @@ describe('RequestsService', () => {
 
   it('creates a submitted designer application request without changing the user role', async () => {
     const createdRequest = {
+      _id: new Types.ObjectId(),
       type: RequestType.DesignerApplication,
       status: RequestStatus.Submitted,
+      fileIds: [] as Types.ObjectId[],
+      save: jest.fn().mockImplementation(function (this: unknown) {
+        return Promise.resolve(this);
+      }),
     };
     requestModel.findOne.mockReturnValue(createExecQuery(null));
     requestModel.create.mockResolvedValue(createdRequest);
@@ -99,8 +110,42 @@ describe('RequestsService', () => {
         portfolioLinks: ['https://instagram.com/limitwear'],
       },
       priority: RequestPriority.Normal,
+      fileIds: [],
     });
+    expect(createdRequest.save).toHaveBeenCalled();
     expect(user.role).toBe(UserRole.User);
+  });
+
+  it('attaches pending designer application files to the created request', async () => {
+    const requestId = new Types.ObjectId();
+    const fileId = new Types.ObjectId();
+    const createdRequest = {
+      _id: requestId,
+      type: RequestType.DesignerApplication,
+      status: RequestStatus.Submitted,
+      fileIds: [] as Types.ObjectId[],
+      save: jest.fn().mockImplementation(function (this: unknown) {
+        return Promise.resolve(this);
+      }),
+    };
+    requestModel.findOne.mockReturnValue(createExecQuery(null));
+    requestModel.create.mockResolvedValue(createdRequest);
+    filesService.attachPendingFiles.mockResolvedValue([{ _id: fileId }] as never);
+
+    await service.createDesignerApplication(user, {
+      displayName: 'LimitWear Studio',
+      slug: 'limitwear-studio',
+      fileIds: [fileId.toHexString()],
+    });
+
+    expect(filesService.attachPendingFiles).toHaveBeenCalledWith({
+      userId,
+      fileIds: [fileId.toHexString()],
+      categories: ['designer_application_file'],
+      relatedEntityType: 'request',
+      relatedEntityId: requestId,
+    });
+    expect(createdRequest.fileIds).toEqual([fileId]);
   });
 
   it('prevents duplicate active designer applications', async () => {

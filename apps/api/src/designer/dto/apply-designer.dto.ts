@@ -26,4 +26,10 @@ export class ApplyDesignerDto {
     example: 'I want to launch limited drops on LimitWear.',
   })
   message?: string;
+
+  @ApiPropertyOptional({
+    example: ['6674b275c08ff9a9c9a4b005'],
+    type: [String],
+  })
+  fileIds?: string[];
 }
