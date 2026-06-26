@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UserRole, UserStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { FileUploadValidationService } from './file-upload-validation.service';
@@ -130,5 +130,86 @@ describe('FilesService', () => {
         status: FileAssetStatus.Deleted,
       }),
     ).toThrow(NotFoundException);
+  });
+
+  it('allows a designer to get a signed URL for their own private file', async () => {
+    const userId = new Types.ObjectId().toHexString();
+    fileAssetModel.findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        storageKey: 'design_original/owned-file.pdf',
+        visibility: FileVisibility.Private,
+        status: FileAssetStatus.Active,
+        uploadedByUserId: new Types.ObjectId(userId),
+      }),
+    });
+    storageService.getPrivateUrl.mockResolvedValue('https://storage.example/owned-signed-url');
+
+    await expect(
+      service.getPrivateUrlForUser(
+        {
+          id: userId,
+          email: 'designer@example.com',
+          role: UserRole.Designer,
+          permissions: [],
+          status: UserStatus.Active,
+          isEmailVerified: false,
+          isPhoneVerified: false,
+        },
+        new Types.ObjectId().toHexString(),
+      ),
+    ).resolves.toBe('https://storage.example/owned-signed-url');
+  });
+
+  it('blocks a regular user from another user private file', async () => {
+    fileAssetModel.findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        storageKey: 'design_original/another-user-file.pdf',
+        visibility: FileVisibility.Private,
+        status: FileAssetStatus.Active,
+        uploadedByUserId: new Types.ObjectId(),
+      }),
+    });
+
+    await expect(
+      service.getPrivateUrlForUser(
+        {
+          id: new Types.ObjectId().toHexString(),
+          email: 'user@example.com',
+          role: UserRole.User,
+          permissions: [],
+          status: UserStatus.Active,
+          isEmailVerified: false,
+          isPhoneVerified: false,
+        },
+        new Types.ObjectId().toHexString(),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('allows an admin to access internal files', async () => {
+    fileAssetModel.findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        storageKey: 'admin_attachment/internal.pdf',
+        visibility: FileVisibility.Internal,
+        status: FileAssetStatus.Active,
+        uploadedByUserId: new Types.ObjectId(),
+      }),
+    });
+    storageService.getPrivateUrl.mockResolvedValue('https://storage.example/admin-signed-url');
+
+    await expect(
+      service.getPrivateUrlForUser(
+        {
+          id: new Types.ObjectId().toHexString(),
+          email: 'admin@example.com',
+          role: UserRole.Admin,
+          permissions: [],
+          status: UserStatus.Active,
+          isEmailVerified: false,
+          isPhoneVerified: false,
+        },
+        new Types.ObjectId().toHexString(),
+      ),
+    ).resolves.toBe('https://storage.example/admin-signed-url');
   });
 });

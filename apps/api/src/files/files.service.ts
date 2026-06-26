@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { hasPermission, Permission } from '@limitwear/shared';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -10,6 +16,7 @@ import {
 } from './schemas/file-asset.schema';
 import { FileUploadActor, FileUploadValidationService } from './file-upload-validation.service';
 import { S3StorageService } from './s3-storage.service';
+import type { PublicUser } from '../users/users.service';
 
 export type UploadFileInput = {
   originalName: string;
@@ -164,5 +171,34 @@ export class FilesService {
     }
 
     return this.storageService.getPrivateUrl(file.storageKey);
+  }
+
+  async getPrivateUrlForUser(user: PublicUser, fileId: string): Promise<string> {
+    if (!Types.ObjectId.isValid(fileId)) {
+      throw new NotFoundException('File asset was not found.');
+    }
+
+    const file = await this.fileAssetModel.findById(fileId).exec();
+
+    if (!file || file.status === FileAssetStatus.Deleted) {
+      throw new NotFoundException('File asset was not found.');
+    }
+
+    if (file.visibility === FileVisibility.Public) {
+      return this.getPublicUrl(file);
+    }
+
+    const canReadAnyPrivateFile = hasPermission(
+      user.role,
+      Permission.FilesPrivateRead,
+      user.permissions,
+    );
+    const ownsFile = file.uploadedByUserId.toString() === user.id;
+
+    if (!canReadAnyPrivateFile && (file.visibility === FileVisibility.Internal || !ownsFile)) {
+      throw new ForbiddenException('You do not have access to this file.');
+    }
+
+    return this.getPrivateUrl(file);
   }
 }
