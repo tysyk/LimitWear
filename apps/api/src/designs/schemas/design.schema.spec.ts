@@ -10,7 +10,6 @@ describe('DesignSchema', () => {
     expect(DesignSchema.path('designerId')).toBeDefined();
     expect(DesignSchema.path('createdByUserId').options.required).toBe(true);
     expect(DesignSchema.path('title').options.required).toBe(true);
-    expect(DesignSchema.path('slug').options.unique).toBe(true);
     expect(DesignSchema.path('slug').options.sparse).toBe(true);
     expect(DesignSchema.path('slug').options.lowercase).toBe(true);
     expect(DesignSchema.path('description')).toBeDefined();

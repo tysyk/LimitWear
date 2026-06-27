@@ -9,12 +9,10 @@ describe('DropSchema', () => {
 
   it('defines baseline drop fields and defaults', () => {
     expect(DropSchema.path('dropNumber').options.required).toBe(true);
-    expect(DropSchema.path('dropNumber').options.unique).toBe(true);
     expect(DropSchema.path('designId').options.required).toBe(true);
     expect(DropSchema.path('designerId')).toBeDefined();
     expect(DropSchema.path('collectionId')).toBeDefined();
     expect(DropSchema.path('title').options.required).toBe(true);
-    expect(DropSchema.path('slug').options.unique).toBe(true);
     expect(DropSchema.path('slug').options.lowercase).toBe(true);
     expect(DropSchema.path('description')).toBeDefined();
     expect(DropSchema.path('productType').options.enum).toEqual(Object.values(ProductType));

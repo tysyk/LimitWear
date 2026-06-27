@@ -42,7 +42,6 @@ export class DesignerProfile {
     type: MongooseSchema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true,
   })
   userId!: Types.ObjectId;
 
@@ -56,7 +55,6 @@ export class DesignerProfile {
     required: true,
     trim: true,
     lowercase: true,
-    unique: true,
   })
   slug!: string;
 

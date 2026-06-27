@@ -13,9 +13,7 @@ describe('DesignerProfileSchema', () => {
 
   it('defines baseline designer profile fields and defaults', () => {
     expect(DesignerProfileSchema.path('userId').options.required).toBe(true);
-    expect(DesignerProfileSchema.path('userId').options.unique).toBe(true);
     expect(DesignerProfileSchema.path('displayName').options.required).toBe(true);
-    expect(DesignerProfileSchema.path('slug').options.unique).toBe(true);
     expect(DesignerProfileSchema.path('slug').options.lowercase).toBe(true);
     expect(DesignerProfileSchema.path('bio')).toBeDefined();
     expect(DesignerProfileSchema.path('avatarFileId')).toBeDefined();

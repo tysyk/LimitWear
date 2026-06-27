@@ -20,7 +20,6 @@ export class Drop {
   @Prop({
     required: true,
     trim: true,
-    unique: true,
   })
   dropNumber!: string;
 
@@ -50,7 +49,6 @@ export class Drop {
     required: true,
     trim: true,
     lowercase: true,
-    unique: true,
   })
   slug!: string;
 

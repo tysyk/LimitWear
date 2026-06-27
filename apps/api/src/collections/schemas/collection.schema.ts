@@ -26,7 +26,6 @@ export class Collection {
     required: true,
     trim: true,
     lowercase: true,
-    unique: true,
   })
   slug!: string;
 
