@@ -15,7 +15,6 @@ describe('FileAssetSchema', () => {
   it('defines baseline file metadata fields and defaults', () => {
     expect(FileAssetSchema.path('originalName').options.required).toBe(true);
     expect(FileAssetSchema.path('storageKey').options.required).toBe(true);
-    expect(FileAssetSchema.path('storageKey').options.unique).toBe(true);
     expect(FileAssetSchema.path('bucket').options.required).toBe(true);
     expect(FileAssetSchema.path('mimeType').options.required).toBe(true);
     expect(FileAssetSchema.path('mimeType').options.lowercase).toBe(true);

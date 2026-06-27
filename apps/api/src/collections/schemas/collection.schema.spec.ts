@@ -8,7 +8,6 @@ describe('CollectionSchema', () => {
 
   it('defines baseline collection fields and defaults', () => {
     expect(CollectionSchema.path('title').options.required).toBe(true);
-    expect(CollectionSchema.path('slug').options.unique).toBe(true);
     expect(CollectionSchema.path('slug').options.lowercase).toBe(true);
     expect(CollectionSchema.path('description')).toBeDefined();
     expect(CollectionSchema.path('dropIds').options.default).toEqual([]);

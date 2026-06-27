@@ -41,7 +41,6 @@ export class FileAsset {
   @Prop({
     required: true,
     trim: true,
-    unique: true,
   })
   storageKey!: string;
 

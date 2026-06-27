@@ -41,7 +41,6 @@ export class Design {
   @Prop({
     trim: true,
     lowercase: true,
-    unique: true,
     sparse: true,
   })
   slug?: string;
