@@ -27,6 +27,7 @@ describe('DropsService', () => {
     create: jest.Mock;
     find: jest.Mock;
     findById: jest.Mock;
+    findOneAndUpdate: jest.Mock;
     findOne: jest.Mock;
   };
   let designModel: {
@@ -34,6 +35,7 @@ describe('DropsService', () => {
   };
   let auditService: {
     recordAdminAction: jest.Mock;
+    recordSystemAction: jest.Mock;
   };
 
   const admin = () => ({
@@ -86,6 +88,7 @@ describe('DropsService', () => {
       create: jest.fn(),
       find: jest.fn(),
       findById: jest.fn(),
+      findOneAndUpdate: jest.fn(),
       findOne: jest.fn(),
     };
     designModel = {
@@ -93,6 +96,7 @@ describe('DropsService', () => {
     };
     auditService = {
       recordAdminAction: jest.fn().mockResolvedValue({}),
+      recordSystemAction: jest.fn().mockResolvedValue({}),
     };
     service = new DropsService(
       dropModel as unknown as Model<DropDocument>,
@@ -314,5 +318,211 @@ describe('DropsService', () => {
         action: `drop.${DropStatus.Completed}`,
       }),
     );
+  });
+
+  it('validates pending order quantity without incrementing current quantity', async () => {
+    const activeDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 9,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+
+    await expect(
+      service.validatePendingOrderQuantity({
+        dropId: activeDrop._id.toHexString(),
+        size: 'M',
+        quantity: 1,
+      }),
+    ).resolves.toBe(activeDrop);
+
+    expect(activeDrop.currentQuantity).toBe(9);
+    expect(dropModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects pending order quantity that would overbook a drop', async () => {
+    const nearlySoldOutDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 19,
+      maxQuantity: 20,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(nearlySoldOutDrop));
+
+    await expect(
+      service.validatePendingOrderQuantity({
+        dropId: nearlySoldOutDrop._id.toHexString(),
+        size: 'M',
+        quantity: 2,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects unavailable or unsafe size values', async () => {
+    const activeDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+
+    await expect(
+      service.validatePendingOrderQuantity({
+        dropId: activeDrop._id.toHexString(),
+        size: 'XL',
+        quantity: 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    await expect(
+      service.validatePendingOrderQuantity({
+        dropId: activeDrop._id.toHexString(),
+        size: 'M.$inc',
+        quantity: 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('confirms payment hold with an atomic quantity increment', async () => {
+    const activeDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 8,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    const updatedDrop = createDropDocument({
+      _id: activeDrop._id,
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 9,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+    dropModel.findOneAndUpdate.mockReturnValue(createQueryMock(updatedDrop));
+
+    await expect(
+      service.confirmPaymentHoldQuantity({
+        dropId: activeDrop._id.toHexString(),
+        size: 'M',
+        quantity: 1,
+      }),
+    ).resolves.toBe(updatedDrop);
+
+    expect(dropModel.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: activeDrop._id,
+        sizeOptions: 'M',
+        currentQuantity: {
+          $lte: 19,
+        },
+      }),
+      {
+        $inc: {
+          currentQuantity: 1,
+          'sizeBreakdown.M': 1,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+  });
+
+  it('moves a drop to guaranteed when confirmed quantity reaches the minimum', async () => {
+    const saveMock = jest.fn().mockImplementation(function save(this: DropDocument) {
+      return Promise.resolve(this);
+    });
+    const activeDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 9,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    const updatedDrop = createDropDocument({
+      _id: activeDrop._id,
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 10,
+      minQuantity: 10,
+      maxQuantity: 20,
+      save: saveMock as never,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+    dropModel.findOneAndUpdate.mockReturnValue(createQueryMock(updatedDrop));
+
+    await service.confirmPaymentHoldQuantity({
+      dropId: activeDrop._id.toHexString(),
+      size: 'M',
+      quantity: 1,
+    });
+
+    expect(updatedDrop.status).toBe(DropStatus.Guaranteed);
+    expect(saveMock).toHaveBeenCalled();
+    expect(auditService.recordSystemAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: `drop.${DropStatus.Guaranteed}`,
+        old: { status: DropStatus.ActiveCollecting },
+        new: {
+          status: DropStatus.Guaranteed,
+          currentQuantity: 10,
+        },
+      }),
+    );
+  });
+
+  it('moves a drop to sold out when confirmed quantity reaches the maximum', async () => {
+    const saveMock = jest.fn().mockImplementation(function save(this: DropDocument) {
+      return Promise.resolve(this);
+    });
+    const guaranteedDrop = createDropDocument({
+      status: DropStatus.Guaranteed,
+      currentQuantity: 19,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    const updatedDrop = createDropDocument({
+      _id: guaranteedDrop._id,
+      status: DropStatus.Guaranteed,
+      currentQuantity: 20,
+      minQuantity: 10,
+      maxQuantity: 20,
+      save: saveMock as never,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(guaranteedDrop));
+    dropModel.findOneAndUpdate.mockReturnValue(createQueryMock(updatedDrop));
+
+    await service.confirmPaymentHoldQuantity({
+      dropId: guaranteedDrop._id.toHexString(),
+      size: 'M',
+      quantity: 1,
+    });
+
+    expect(updatedDrop.status).toBe(DropStatus.SoldOut);
+    expect(saveMock).toHaveBeenCalled();
+    expect(auditService.recordSystemAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: `drop.${DropStatus.SoldOut}`,
+        old: { status: DropStatus.Guaranteed },
+        new: {
+          status: DropStatus.SoldOut,
+          currentQuantity: 20,
+        },
+      }),
+    );
+  });
+
+  it('rejects stale confirmed holds when the atomic update cannot reserve quantity', async () => {
+    const activeDrop = createDropDocument({
+      status: DropStatus.ActiveCollecting,
+      currentQuantity: 19,
+      maxQuantity: 20,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+    dropModel.findOneAndUpdate.mockReturnValue(createQueryMock(null));
+
+    await expect(
+      service.confirmPaymentHoldQuantity({
+        dropId: activeDrop._id.toHexString(),
+        size: 'M',
+        quantity: 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
   });
 });

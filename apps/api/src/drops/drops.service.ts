@@ -24,6 +24,12 @@ export const PUBLIC_DROP_STATUSES = [
   DropStatus.ForeverClosed,
 ] as const;
 
+export interface DropQuantityReservation {
+  dropId: string;
+  size: string;
+  quantity: number;
+}
+
 type DropWithId = Drop & {
   _id?: Types.ObjectId;
 };
@@ -134,6 +140,55 @@ export class DropsService {
     return updated;
   }
 
+  async validatePendingOrderQuantity(input: DropQuantityReservation): Promise<DropDocument> {
+    const drop = await this.findDrop(input.dropId);
+    this.validateReservableQuantity(drop, input);
+    return drop;
+  }
+
+  async confirmPaymentHoldQuantity(
+    input: DropQuantityReservation,
+    request?: AuditRequestContext,
+  ): Promise<DropDocument> {
+    const drop = await this.validatePendingOrderQuantity(input);
+    const previousStatus = drop.status;
+    const size = this.normalizeSize(input.size);
+    const quantity = input.quantity;
+    const maxCurrentQuantity = drop.maxQuantity - quantity;
+    const sizeBreakdownField = `sizeBreakdown.${size}`;
+
+    const updated = await this.dropModel
+      .findOneAndUpdate(
+        {
+          _id: drop._id,
+          status: {
+            $in: [DropStatus.ActiveCollecting, DropStatus.Guaranteed],
+          },
+          sizeOptions: size,
+          currentQuantity: {
+            $lte: maxCurrentQuantity,
+          },
+        },
+        {
+          $inc: {
+            currentQuantity: quantity,
+            [sizeBreakdownField]: quantity,
+          },
+        },
+        {
+          new: true,
+        },
+      )
+      .exec();
+
+    if (!updated) {
+      throw new BadRequestException('Drop does not have enough available quantity.');
+    }
+
+    await this.applyQuantityStatusRules(updated, previousStatus, request);
+    return updated;
+  }
+
   async findPublicDrops(): Promise<Drop[]> {
     return this.dropModel
       .find({
@@ -224,6 +279,71 @@ export class DropsService {
     const design = await this.designModel.findById(id).exec();
     if (!design) throw new BadRequestException('Design was not found');
     return design;
+  }
+
+  private validateReservableQuantity(drop: Drop, input: DropQuantityReservation): void {
+    this.validateQuantity(input.quantity);
+    const size = this.normalizeSize(input.size);
+
+    if (![DropStatus.ActiveCollecting, DropStatus.Guaranteed].includes(drop.status)) {
+      throw new BadRequestException('Drop is not accepting orders.');
+    }
+
+    if (!drop.sizeOptions.includes(size)) {
+      throw new BadRequestException('Selected size is not available for this drop.');
+    }
+
+    if (drop.currentQuantity + input.quantity > drop.maxQuantity) {
+      throw new BadRequestException('Drop does not have enough available quantity.');
+    }
+  }
+
+  private validateQuantity(quantity: number): void {
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new BadRequestException('Quantity must be a positive integer.');
+    }
+  }
+
+  private normalizeSize(size: string): string {
+    const normalizedSize = size.trim();
+    if (!normalizedSize || normalizedSize.includes('.') || normalizedSize.includes('$')) {
+      throw new BadRequestException('Selected size is invalid.');
+    }
+    return normalizedSize;
+  }
+
+  private async applyQuantityStatusRules(
+    drop: DropDocument,
+    previousStatus: DropStatus,
+    request?: AuditRequestContext,
+  ): Promise<void> {
+    let nextStatus: DropStatus | undefined;
+
+    if (drop.currentQuantity >= drop.maxQuantity) {
+      nextStatus = DropStatus.SoldOut;
+    } else if (
+      previousStatus === DropStatus.ActiveCollecting &&
+      drop.currentQuantity >= drop.minQuantity
+    ) {
+      nextStatus = DropStatus.Guaranteed;
+    }
+
+    if (!nextStatus || nextStatus === previousStatus) {
+      return;
+    }
+
+    drop.status = nextStatus;
+    await drop.save();
+    await this.auditService.recordSystemAction({
+      action: `drop.${nextStatus}`,
+      entity: { type: 'drop', id: drop._id.toHexString() },
+      old: { status: previousStatus },
+      new: {
+        status: nextStatus,
+        currentQuantity: drop.currentQuantity,
+      },
+      request,
+    });
   }
 
   private validateDropInput(dto: CreateDropDto): void {
