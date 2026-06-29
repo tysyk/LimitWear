@@ -648,6 +648,114 @@ a {
   width: auto;
 }
 
+.delivery-form,
+.admin-panel {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 880px);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.admin-panel {
+  width: min(100% - 48px, 960px);
+}
+
+.delivery-form label {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.delivery-form input,
+.delivery-form select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.delivery-form input:focus,
+.delivery-form select:focus {
+  border-color: var(--foreground);
+  outline: none;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.autocomplete-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  display: grid;
+  overflow: hidden;
+  max-height: 280px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffdfa;
+  box-shadow: 0 18px 40px rgba(20, 20, 20, 0.12);
+}
+
+.autocomplete-list button {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.autocomplete-list button:hover {
+  background: rgba(231, 75, 43, 0.08);
+}
+
+.autocomplete-list small {
+  color: var(--muted);
+}
+
+.delivery-preview {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(20, 20, 20, 0.04);
+}
+
+.delivery-preview h2 {
+  font-size: clamp(1.8rem, 5vw, 3.4rem);
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
 .site-footer {
   min-height: 72px;
   border-top: 1px solid var(--line);
