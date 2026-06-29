@@ -2,18 +2,36 @@ import { NotificationCategory, NotificationChannel, NotificationStatus } from '@
 import { Model, Types } from 'mongoose';
 import { NotificationsService } from './notifications.service';
 import { NotificationDocument } from './schemas/notification.schema';
+import { NotificationSettingsDocument } from './schemas/notification-settings.schema';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let notificationModel: {
     create: jest.Mock;
+    find: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  let notificationSettingsModel: {
+    create: jest.Mock;
+    findOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
   };
 
   beforeEach(() => {
     notificationModel = {
       create: jest.fn(),
+      find: jest.fn(),
+      updateMany: jest.fn(),
     };
-    service = new NotificationsService(notificationModel as unknown as Model<NotificationDocument>);
+    notificationSettingsModel = {
+      create: jest.fn(),
+      findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+    };
+    service = new NotificationsService(
+      notificationModel as unknown as Model<NotificationDocument>,
+      notificationSettingsModel as unknown as Model<NotificationSettingsDocument>,
+    );
   });
 
   it('creates unread in-app notifications for users', async () => {
@@ -88,5 +106,110 @@ describe('NotificationsService', () => {
         message: 'Please try another card.',
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it('lists notifications with optional status filters', async () => {
+    const userId = new Types.ObjectId();
+    const notifications = [{ id: 'notification-id' }];
+    const exec = jest.fn().mockResolvedValue(notifications);
+    const lean = jest.fn().mockReturnValue({ exec });
+    const sort = jest.fn().mockReturnValue({ lean });
+    notificationModel.find.mockReturnValue({ sort });
+
+    await expect(service.listForUser(userId, { status: NotificationStatus.Unread })).resolves.toBe(
+      notifications,
+    );
+
+    expect(notificationModel.find).toHaveBeenCalledWith({
+      userId,
+      status: NotificationStatus.Unread,
+    });
+    expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
+  });
+
+  it('marks all unread notifications as read', async () => {
+    const userId = new Types.ObjectId();
+    notificationModel.updateMany.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 3 }),
+    });
+
+    await expect(service.markAllRead(userId)).resolves.toEqual({ modifiedCount: 3 });
+    expect(notificationModel.updateMany).toHaveBeenCalledWith(
+      {
+        userId,
+        status: NotificationStatus.Unread,
+      },
+      expect.any(Object),
+    );
+    const [, update] = notificationModel.updateMany.mock.calls[0] as [
+      unknown,
+      { $set: { status: NotificationStatus; readAt: Date } },
+    ];
+    expect(update.$set.status).toBe(NotificationStatus.Read);
+    expect(update.$set.readAt).toBeInstanceOf(Date);
+  });
+
+  it('creates default notification settings with marketing disabled', async () => {
+    const userId = new Types.ObjectId();
+    const settings = { id: 'settings-id' } as NotificationSettingsDocument;
+    notificationSettingsModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+    notificationSettingsModel.create.mockResolvedValue(settings);
+
+    await expect(service.getSettings(userId)).resolves.toBe(settings);
+    expect(notificationSettingsModel.create).toHaveBeenCalledWith({
+      userId,
+      emailEnabled: true,
+      telegramEnabled: false,
+      wishlistEnabled: true,
+      secondChanceEnabled: true,
+      marketingOptIn: false,
+      inAppEnabled: true,
+    });
+  });
+
+  it('updates settings while keeping in-app notifications enabled', async () => {
+    const userId = new Types.ObjectId();
+    const settings = { id: 'settings-id', inAppEnabled: true } as NotificationSettingsDocument;
+    notificationSettingsModel.findOneAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(settings),
+    });
+
+    await expect(
+      service.updateSettings(userId, {
+        emailEnabled: false,
+        telegramEnabled: true,
+        marketingOptIn: true,
+      }),
+    ).resolves.toBe(settings);
+
+    expect(notificationSettingsModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { userId },
+      expect.any(Object),
+      expect.objectContaining({
+        new: true,
+        upsert: true,
+      }),
+    );
+    const [, update] = notificationSettingsModel.findOneAndUpdate.mock.calls[0] as [
+      unknown,
+      {
+        $set: {
+          emailEnabled: boolean;
+          telegramEnabled: boolean;
+          marketingOptIn: boolean;
+          inAppEnabled: true;
+        };
+      },
+    ];
+    expect(update.$set).toEqual(
+      expect.objectContaining({
+        emailEnabled: false,
+        telegramEnabled: true,
+        marketingOptIn: true,
+        inAppEnabled: true,
+      }),
+    );
   });
 });

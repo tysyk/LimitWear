@@ -814,6 +814,36 @@ a {
   font-size: 0.78rem;
 }
 
+.notification-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-list small {
+  color: var(--muted);
+}
+
+.toggle-row {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.toggle-row input {
+  width: 22px;
+  min-height: 22px;
+}
+
 .site-footer {
   min-height: 72px;
   border-top: 1px solid var(--line);
@@ -894,5 +924,10 @@ a {
 
   .admin-split {
     grid-template-columns: 1fr;
+  }
+
+  .notification-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
