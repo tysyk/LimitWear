@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { DeliveryStatus, OrderStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
+import { AuditService } from '../audit/audit.service';
 import { CreateTtnDto, validateCreateTtnDto } from './dto/create-ttn.dto';
 import { NovaPoshtaService } from './nova-poshta.service';
 import { Delivery, DeliveryDocument, DeliveryProvider } from './schemas/delivery.schema';
@@ -28,6 +29,7 @@ export class DeliveryService {
     @InjectModel(Delivery.name) private readonly deliveryModel: Model<DeliveryDocument>,
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     private readonly novaPoshtaService: NovaPoshtaService,
+    private readonly auditService: AuditService,
   ) {}
 
   async createTtnForOrder(orderId: string, dto: CreateTtnDto): Promise<DeliveryDocument> {
@@ -47,17 +49,7 @@ export class DeliveryService {
       throw new BadRequestException('Order already has a delivery.');
     }
 
-    const ttn = await this.novaPoshtaService.createTtn({
-      orderId: order._id.toHexString(),
-      recipientName: order.recipientName,
-      recipientPhone: order.recipientPhone,
-      cityRef: order.deliveryData.cityRef,
-      warehouseRef: order.deliveryData.warehouseRef,
-      weight: input.weight,
-      seatsAmount: input.seatsAmount,
-      description: input.description,
-      cost: input.cost,
-    });
+    const ttn = await this.createNovaPoshtaTtnOrMarkProblem(order, input);
 
     const delivery = await this.deliveryModel.create({
       orderId: order._id,
@@ -80,6 +72,41 @@ export class DeliveryService {
     order.deliveryId = delivery._id;
     await order.save();
     return delivery;
+  }
+
+  private async createNovaPoshtaTtnOrMarkProblem(
+    order: OrderDocument,
+    input: ReturnType<typeof validateCreateTtnDto>,
+  ) {
+    try {
+      return await this.novaPoshtaService.createTtn({
+        orderId: order._id.toHexString(),
+        recipientName: order.recipientName,
+        recipientPhone: order.recipientPhone,
+        cityRef: order.deliveryData.cityRef,
+        warehouseRef: order.deliveryData.warehouseRef,
+        weight: input.weight,
+        seatsAmount: input.seatsAmount,
+        description: input.description,
+        cost: input.cost,
+      });
+    } catch (error) {
+      order.status = OrderStatus.DeliveryProblem;
+      await order.save();
+      await this.auditService.recordSystemAction({
+        action: 'delivery.ttn_failed',
+        entity: {
+          type: 'order',
+          id: order._id.toHexString(),
+        },
+        new: {
+          status: OrderStatus.DeliveryProblem,
+          reason: error instanceof Error ? error.message : 'Unknown TTN creation error.',
+        },
+        reason: 'Nova Poshta TTN creation failed; admin follow-up required.',
+      });
+      throw error;
+    }
   }
 
   async createTtnForOrders(orderIds: string[], dto: CreateTtnDto): Promise<BulkCreateTtnResult> {

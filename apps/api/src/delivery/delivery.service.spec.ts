@@ -3,12 +3,14 @@ import { DeliveryStatus, OrderStatus } from '@limitwear/shared';
 import { Types } from 'mongoose';
 import { DeliveryService } from './delivery.service';
 import { DeliveryType } from '../orders/dto/create-order.dto';
+import { AuditService } from '../audit/audit.service';
 
 describe('DeliveryService', () => {
   let service: DeliveryService;
   let deliveryModel: { create: jest.Mock };
   let orderModel: { findById: jest.Mock };
   let novaPoshtaService: { createTtn: jest.Mock };
+  let auditService: jest.Mocked<Pick<AuditService, 'recordSystemAction'>>;
 
   const orderId = new Types.ObjectId();
   const userId = new Types.ObjectId();
@@ -19,10 +21,12 @@ describe('DeliveryService', () => {
     deliveryModel = { create: jest.fn() };
     orderModel = { findById: jest.fn() };
     novaPoshtaService = { createTtn: jest.fn() };
+    auditService = { recordSystemAction: jest.fn().mockResolvedValue({}) };
     service = new DeliveryService(
       deliveryModel as never,
       orderModel as never,
       novaPoshtaService as never,
+      auditService as unknown as AuditService,
     );
   });
 
@@ -68,6 +72,33 @@ describe('DeliveryService', () => {
     );
     expect(order.deliveryId).toBe(deliveryId);
     expect(order.save).toHaveBeenCalled();
+  });
+
+  it('marks the order as a delivery problem and creates an admin follow-up source when TTN fails', async () => {
+    const order = createOrder();
+    const providerError = new Error('Nova Poshta returned an error.');
+    orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
+    novaPoshtaService.createTtn.mockRejectedValue(providerError);
+
+    await expect(service.createTtnForOrder(orderId.toHexString(), validDto())).rejects.toThrow(
+      providerError,
+    );
+
+    expect(order.status).toBe(OrderStatus.DeliveryProblem);
+    expect(order.save).toHaveBeenCalled();
+    expect(deliveryModel.create).not.toHaveBeenCalled();
+    expect(auditService.recordSystemAction).toHaveBeenCalledWith({
+      action: 'delivery.ttn_failed',
+      entity: {
+        type: 'order',
+        id: orderId.toHexString(),
+      },
+      new: {
+        status: OrderStatus.DeliveryProblem,
+        reason: 'Nova Poshta returned an error.',
+      },
+      reason: 'Nova Poshta TTN creation failed; admin follow-up required.',
+    });
   });
 
   it('rejects missing, non-ready, and already delivered orders', async () => {
