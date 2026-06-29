@@ -7,6 +7,21 @@ import { CreateTtnDto, validateCreateTtnDto } from './dto/create-ttn.dto';
 import { NovaPoshtaService } from './nova-poshta.service';
 import { Delivery, DeliveryDocument, DeliveryProvider } from './schemas/delivery.schema';
 
+export interface BulkCreateTtnResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+  results: Array<{
+    orderId: string;
+    deliveryId: string;
+    trackingNumber?: string;
+  }>;
+  errors: Array<{
+    orderId: string;
+    message: string;
+  }>;
+}
+
 @Injectable()
 export class DeliveryService {
   constructor(
@@ -65,5 +80,38 @@ export class DeliveryService {
     order.deliveryId = delivery._id;
     await order.save();
     return delivery;
+  }
+
+  async createTtnForOrders(orderIds: string[], dto: CreateTtnDto): Promise<BulkCreateTtnResult> {
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      throw new BadRequestException('At least one orderId is required.');
+    }
+
+    const results: BulkCreateTtnResult['results'] = [];
+    const errors: BulkCreateTtnResult['errors'] = [];
+
+    for (const orderId of orderIds) {
+      try {
+        const delivery = await this.createTtnForOrder(orderId, dto);
+        results.push({
+          orderId,
+          deliveryId: delivery._id.toHexString(),
+          trackingNumber: delivery.trackingNumber,
+        });
+      } catch (error) {
+        errors.push({
+          orderId,
+          message: error instanceof Error ? error.message : 'Unknown TTN creation error.',
+        });
+      }
+    }
+
+    return {
+      total: orderIds.length,
+      succeeded: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
   }
 }

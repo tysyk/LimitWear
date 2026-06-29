@@ -95,6 +95,72 @@ describe('DeliveryService', () => {
     );
   });
 
+  it('creates TTNs in bulk and keeps partial failures isolated', async () => {
+    const secondOrderId = new Types.ObjectId();
+    const notReadyOrderId = new Types.ObjectId();
+    const firstOrder = createOrder();
+    const secondOrder = createOrder({ _id: secondOrderId });
+    const firstDelivery = {
+      _id: deliveryId,
+      trackingNumber: '20450000000000',
+    };
+    const secondDelivery = {
+      _id: new Types.ObjectId(),
+      trackingNumber: '20450000000001',
+    };
+    orderModel.findById
+      .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(firstOrder) })
+      .mockReturnValueOnce({
+        exec: jest
+          .fn()
+          .mockResolvedValue(createOrder({ _id: notReadyOrderId, status: OrderStatus.Paid })),
+      })
+      .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(secondOrder) });
+    novaPoshtaService.createTtn
+      .mockResolvedValueOnce({
+        trackingNumber: '20450000000000',
+        documentRef: 'document-ref',
+      })
+      .mockResolvedValueOnce({
+        trackingNumber: '20450000000001',
+        documentRef: 'document-ref-2',
+      });
+    deliveryModel.create.mockResolvedValueOnce(firstDelivery).mockResolvedValueOnce(secondDelivery);
+
+    await expect(
+      service.createTtnForOrders(
+        [orderId.toHexString(), notReadyOrderId.toHexString(), secondOrderId.toHexString()],
+        validDto(),
+      ),
+    ).resolves.toEqual({
+      total: 3,
+      succeeded: 2,
+      failed: 1,
+      results: [
+        {
+          orderId: orderId.toHexString(),
+          deliveryId: deliveryId.toHexString(),
+          trackingNumber: '20450000000000',
+        },
+        {
+          orderId: secondOrderId.toHexString(),
+          deliveryId: secondDelivery._id.toHexString(),
+          trackingNumber: '20450000000001',
+        },
+      ],
+      errors: [
+        {
+          orderId: notReadyOrderId.toHexString(),
+          message: 'TTN can be created only for ready to ship orders.',
+        },
+      ],
+    });
+  });
+
+  it('rejects empty bulk TTN requests', async () => {
+    await expect(service.createTtnForOrders([], validDto())).rejects.toThrow(BadRequestException);
+  });
+
   function validDto() {
     return { weight: 1, seatsAmount: 1, description: 'LimitWear order', cost: 2200 };
   }
