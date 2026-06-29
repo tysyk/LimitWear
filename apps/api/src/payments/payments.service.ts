@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { OrderStatus, PaymentStatus } from '@limitwear/shared';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
 import { DropsService } from '../drops/drops.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -36,6 +36,14 @@ export interface MonobankWebhookResult {
   ok: true;
   duplicate: boolean;
   paymentId?: string;
+}
+
+export interface PaymentHoldLifecycleResult {
+  dropId: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  paymentIds: string[];
 }
 
 @Injectable()
@@ -145,6 +153,14 @@ export class PaymentsService {
       duplicate: false,
       paymentId: payment._id.toHexString(),
     };
+  }
+
+  async finalizeActiveHoldsForDrop(dropId: string): Promise<PaymentHoldLifecycleResult> {
+    return this.processActiveHoldsForDrop(dropId, 'finalize');
+  }
+
+  async cancelActiveHoldsForDrop(dropId: string): Promise<PaymentHoldLifecycleResult> {
+    return this.processActiveHoldsForDrop(dropId, 'cancel');
   }
 
   private async findUserPendingPaymentOrder(
@@ -317,6 +333,134 @@ export class PaymentsService {
         orderId: payment.orderId.toHexString(),
         dropId: payment.dropId.toHexString(),
         status: PaymentStatus.Failed,
+      },
+    });
+  }
+
+  private async processActiveHoldsForDrop(
+    dropId: string,
+    action: 'finalize' | 'cancel',
+  ): Promise<PaymentHoldLifecycleResult> {
+    if (!Types.ObjectId.isValid(dropId)) {
+      throw new BadRequestException('Valid dropId is required.');
+    }
+
+    const payments = await this.paymentModel
+      .find({
+        dropId: new Types.ObjectId(dropId),
+        status: {
+          $in: [PaymentStatus.HoldCreated, PaymentStatus.Authorized],
+        },
+      })
+      .exec();
+    const paymentIds: string[] = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const payment of payments) {
+      paymentIds.push(payment._id.toHexString());
+      try {
+        await this.processActiveHold(payment, action);
+        succeeded += 1;
+      } catch (error) {
+        failed += 1;
+        await this.recordHoldLifecycleFailure(payment, action, error);
+      }
+    }
+
+    return {
+      dropId,
+      total: payments.length,
+      succeeded,
+      failed,
+      paymentIds,
+    };
+  }
+
+  private async processActiveHold(
+    payment: PaymentDocument,
+    action: 'finalize' | 'cancel',
+  ): Promise<void> {
+    if (!payment.providerInvoiceId) {
+      throw new BadRequestException('Payment does not have provider invoice id.');
+    }
+
+    if (action === 'finalize') {
+      await this.monobankService.finalizeHold(payment.providerInvoiceId);
+      payment.status = PaymentStatus.Finalized;
+      payment.finalizedAt = new Date();
+      await payment.save();
+      await this.orderModel
+        .findByIdAndUpdate(payment.orderId, {
+          status: OrderStatus.Paid,
+          paidAt: payment.finalizedAt,
+          canCancel: false,
+          cancelBlockedReason: 'Payment was finalized.',
+        })
+        .exec();
+      await this.notifyPaymentFinalized(payment);
+      return;
+    }
+
+    await this.monobankService.cancelHold(payment.providerInvoiceId);
+    payment.status = PaymentStatus.Cancelled;
+    payment.cancelledAt = new Date();
+    await payment.save();
+    await this.orderModel
+      .findByIdAndUpdate(payment.orderId, {
+        status: OrderStatus.Cancelled,
+        cancelledAt: payment.cancelledAt,
+        canCancel: false,
+        cancelBlockedReason: 'Drop did not happen.',
+      })
+      .exec();
+    await this.notifyPaymentCancelled(payment);
+  }
+
+  private async recordHoldLifecycleFailure(
+    payment: PaymentDocument,
+    action: 'finalize' | 'cancel',
+    error: unknown,
+  ): Promise<void> {
+    await this.auditService.recordSystemAction({
+      action: `payment.${action}_failed`,
+      entity: { type: 'payment', id: payment._id.toHexString() },
+      new: {
+        providerInvoiceId: payment.providerInvoiceId,
+        status: payment.status,
+        error: error instanceof Error ? error.message : 'Unknown payment lifecycle error.',
+      },
+    });
+  }
+
+  private async notifyPaymentFinalized(payment: PaymentDocument): Promise<void> {
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: payment.userId,
+      type: 'payment.finalized',
+      title: 'Payment finalized',
+      message: 'The drop succeeded, so the reserved amount was charged.',
+      relatedEntityType: 'payment',
+      relatedEntityId: payment._id,
+      metadata: {
+        orderId: payment.orderId.toHexString(),
+        dropId: payment.dropId.toHexString(),
+        status: PaymentStatus.Finalized,
+      },
+    });
+  }
+
+  private async notifyPaymentCancelled(payment: PaymentDocument): Promise<void> {
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: payment.userId,
+      type: 'payment.cancelled',
+      title: 'Payment hold cancelled',
+      message: 'The drop did not happen, so the reserved amount was released.',
+      relatedEntityType: 'payment',
+      relatedEntityId: payment._id,
+      metadata: {
+        orderId: payment.orderId.toHexString(),
+        dropId: payment.dropId.toHexString(),
+        status: PaymentStatus.Cancelled,
       },
     });
   }
