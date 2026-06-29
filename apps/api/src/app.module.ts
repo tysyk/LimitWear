@@ -12,6 +12,7 @@ import { DropsModule } from './drops/drops.module';
 import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 import { RequestsModule } from './requests/requests.module';
 import { UsersModule } from './users/users.module';
 
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     FilesModule,
     HealthModule,
     OrdersModule,
+    PaymentsModule,
     RequestsModule,
     UsersModule,
   ],

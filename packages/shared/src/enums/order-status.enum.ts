@@ -1,10 +1,16 @@
 export enum OrderStatus {
   PendingPayment = 'pending_payment',
+  HoldCreated = 'hold_created',
+  Reserved = 'reserved',
+  Guaranteed = 'guaranteed',
   Paid = 'paid',
+  PaymentFailed = 'payment_failed',
+  Cancelled = 'cancelled',
   InProduction = 'in_production',
   ReadyToShip = 'ready_to_ship',
   Shipped = 'shipped',
   Delivered = 'delivered',
-  Cancelled = 'cancelled',
+  Returned = 'returned',
   Refunded = 'refunded',
+  DeliveryProblem = 'delivery_problem',
 }
