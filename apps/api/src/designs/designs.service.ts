@@ -178,6 +178,7 @@ export class DesignsService {
 
     await this.notificationsService.createForUser({
       userId: reviewedDesign.createdByUserId,
+      type: this.getDesignReviewAction(dto.status),
       category: NotificationCategory.Design,
       title: this.getDesignReviewNotificationTitle(dto.status),
       message: this.getDesignReviewNotificationMessage(reviewedDesign),

@@ -244,6 +244,7 @@ describe('RequestsService', () => {
     );
     expect(notificationsService.createForUser).toHaveBeenCalledWith({
       userId: applicantUserId,
+      type: 'designer_application.approved',
       category: NotificationCategory.Designer,
       title: 'Designer application approved',
       message: 'Your designer application was approved.',

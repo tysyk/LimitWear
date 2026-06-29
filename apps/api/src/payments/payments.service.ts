@@ -11,6 +11,7 @@ import { OrderStatus, PaymentStatus } from '@limitwear/shared';
 import { Model } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
 import { DropsService } from '../drops/drops.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
 import type { PublicUser } from '../users/users.service';
 import { CreatePaymentHoldDto, validateCreatePaymentHoldDto } from './dto/create-payment-hold.dto';
@@ -46,6 +47,7 @@ export class PaymentsService {
     private readonly dropsService: DropsService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createPaymentHold(
@@ -256,6 +258,7 @@ export class PaymentsService {
           status: OrderStatus.PaymentFailed,
         })
         .exec();
+      await this.notifyPaymentFailed(payment);
     }
   }
 
@@ -277,11 +280,44 @@ export class PaymentsService {
         status: OrderStatus.Reserved,
       })
       .exec();
+    await this.notifyHoldCreated(payment, order);
   }
 
   private getDefaultHoldExpiresAt(): Date {
     const holdExpiresAt = new Date();
     holdExpiresAt.setDate(holdExpiresAt.getDate() + 9);
     return holdExpiresAt;
+  }
+
+  private async notifyHoldCreated(payment: PaymentDocument, order: OrderDocument): Promise<void> {
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: payment.userId,
+      type: 'payment.hold_created',
+      title: 'Кошти зарезервовано',
+      message: 'Місце в дропі зарезервовано. Кошти будуть списані тільки якщо дроп відбудеться.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        paymentId: payment._id.toHexString(),
+        dropId: order.dropId.toHexString(),
+        status: PaymentStatus.HoldCreated,
+      },
+    });
+  }
+
+  private async notifyPaymentFailed(payment: PaymentDocument): Promise<void> {
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: payment.userId,
+      type: 'payment.failed',
+      title: 'Оплату не підтверджено',
+      message: 'Monobank не підтвердив резервування коштів. Місце в дропі не було зайняте.',
+      relatedEntityType: 'payment',
+      relatedEntityId: payment._id,
+      metadata: {
+        orderId: payment.orderId.toHexString(),
+        dropId: payment.dropId.toHexString(),
+        status: PaymentStatus.Failed,
+      },
+    });
   }
 }

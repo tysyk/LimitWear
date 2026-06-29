@@ -1,6 +1,7 @@
 export { DeliveryStatus } from './delivery-status.enum.js';
 export { DropStatus } from './drop-status.enum.js';
 export { NotificationCategory } from './notification-category.enum.js';
+export { NotificationChannel } from './notification-channel.enum.js';
 export { NotificationStatus } from './notification-status.enum.js';
 export { OrderStatus } from './order-status.enum.js';
 export { PaymentStatus } from './payment-status.enum.js';

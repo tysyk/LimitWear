@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { NotificationCategory, NotificationStatus } from '@limitwear/shared';
+import { NotificationCategory, NotificationChannel, NotificationStatus } from '@limitwear/shared';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type NotificationDocument = HydratedDocument<Notification>;
@@ -17,11 +17,25 @@ export class Notification {
   userId!: Types.ObjectId;
 
   @Prop({
+    required: true,
+    trim: true,
+  })
+  type!: string;
+
+  @Prop({
     type: String,
     enum: Object.values(NotificationCategory),
     required: true,
   })
   category!: NotificationCategory;
+
+  @Prop({
+    type: String,
+    enum: Object.values(NotificationChannel),
+    default: NotificationChannel.InApp,
+    required: true,
+  })
+  channel!: NotificationChannel;
 
   @Prop({
     type: String,
@@ -65,5 +79,7 @@ export class Notification {
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
 
 NotificationSchema.index({ userId: 1, status: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, createdAt: -1 });
 NotificationSchema.index({ category: 1, createdAt: -1 });
+NotificationSchema.index({ channel: 1, createdAt: -1 });
 NotificationSchema.index({ relatedEntityType: 1, relatedEntityId: 1 });
