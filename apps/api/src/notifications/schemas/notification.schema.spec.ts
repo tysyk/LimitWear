@@ -1,4 +1,4 @@
-import { NotificationCategory, NotificationStatus } from '@limitwear/shared';
+import { NotificationCategory, NotificationChannel, NotificationStatus } from '@limitwear/shared';
 import { Notification, NotificationSchema } from './notification.schema';
 
 describe('NotificationSchema', () => {
@@ -9,9 +9,14 @@ describe('NotificationSchema', () => {
 
   it('defines baseline notification fields and defaults', () => {
     expect(NotificationSchema.path('userId').options.required).toBe(true);
+    expect(NotificationSchema.path('type').options.required).toBe(true);
     expect(NotificationSchema.path('category').options.enum).toEqual(
       Object.values(NotificationCategory),
     );
+    expect(NotificationSchema.path('channel').options.enum).toEqual(
+      Object.values(NotificationChannel),
+    );
+    expect(NotificationSchema.path('channel').options.default).toBe(NotificationChannel.InApp);
     expect(NotificationSchema.path('status').options.enum).toEqual(
       Object.values(NotificationStatus),
     );
@@ -28,7 +33,9 @@ describe('NotificationSchema', () => {
     expect(NotificationSchema.indexes()).toEqual(
       expect.arrayContaining([
         [{ userId: 1, status: 1, createdAt: -1 }, expect.any(Object)],
+        [{ userId: 1, createdAt: -1 }, expect.any(Object)],
         [{ category: 1, createdAt: -1 }, expect.any(Object)],
+        [{ channel: 1, createdAt: -1 }, expect.any(Object)],
         [{ relatedEntityType: 1, relatedEntityId: 1 }, expect.any(Object)],
       ]),
     );

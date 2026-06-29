@@ -29,6 +29,9 @@ describe('PaymentsService', () => {
     recordWebhookAction: jest.Mock;
   };
   let configService: ConfigService;
+  let notificationsService: {
+    safelyCreateServiceNotification: jest.Mock;
+  };
 
   const userId = new Types.ObjectId();
   const orderId = new Types.ObjectId();
@@ -64,6 +67,9 @@ describe('PaymentsService', () => {
       recordWebhookAction: jest.fn(),
     };
     configService = new ConfigService();
+    notificationsService = {
+      safelyCreateServiceNotification: jest.fn(),
+    };
     service = new PaymentsService(
       paymentModel as never,
       orderModel as never,
@@ -71,6 +77,7 @@ describe('PaymentsService', () => {
       dropsService as never,
       auditService as never,
       configService,
+      notificationsService as never,
     );
   });
 
@@ -208,6 +215,52 @@ describe('PaymentsService', () => {
     expect(auditService.recordWebhookAction).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'payment.webhook_received',
+      }),
+    );
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId,
+        type: 'payment.hold_created',
+        relatedEntityType: 'order',
+        relatedEntityId: orderId,
+      }),
+    );
+  });
+
+  it('marks payment and order failed without reserving quantity on failed webhook', async () => {
+    const payment = createPaymentDocument({ providerInvoiceId: 'invoice-id' });
+    paymentModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(payment) });
+    orderModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+    auditService.recordWebhookAction.mockResolvedValue({});
+
+    await expect(
+      service.handleMonobankWebhook(
+        {
+          invoiceId: 'invoice-id',
+          status: 'failed',
+          modifiedDate: 1719500001,
+        },
+        {},
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      duplicate: false,
+      paymentId: paymentId.toHexString(),
+    });
+
+    expect(payment.status).toBe(PaymentStatus.Failed);
+    expect(payment.failedAt).toBeInstanceOf(Date);
+    expect(payment.failureReason).toBe('failed');
+    expect(orderModel.findByIdAndUpdate).toHaveBeenCalledWith(orderId, {
+      status: OrderStatus.PaymentFailed,
+    });
+    expect(dropsService.confirmPaymentHoldQuantity).not.toHaveBeenCalled();
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId,
+        type: 'payment.failed',
+        relatedEntityType: 'payment',
+        relatedEntityId: paymentId,
       }),
     );
   });

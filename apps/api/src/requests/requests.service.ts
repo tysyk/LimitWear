@@ -158,6 +158,7 @@ export class RequestsService {
 
     await this.notificationsService.createForUser({
       userId: applicantUserId,
+      type: this.getDesignerApplicationReviewAction(dto.status),
       category: NotificationCategory.Designer,
       title: this.getDesignerApplicationNotificationTitle(dto.status),
       message: this.getDesignerApplicationNotificationMessage(dto.status),

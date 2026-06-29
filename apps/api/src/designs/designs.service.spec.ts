@@ -251,6 +251,7 @@ describe('DesignsService', () => {
     );
     expect(notificationsService.createForUser).toHaveBeenCalledWith({
       userId: ownerId,
+      type: 'design.approved',
       category: NotificationCategory.Design,
       title: 'Design approved',
       message: 'Your design "Panther Hoodie" was approved.',
