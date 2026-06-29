@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { DropsService } from '../drops/drops.service';
 import { ProductType } from '../drops/schemas/drop.schema';
 import { PaymentsService } from '../payments/payments.service';
+import { ProductionService } from '../production/production.service';
 import { AdminDropsController } from './admin-drops.controller';
 
 describe('AdminDropsController', () => {
@@ -13,6 +14,7 @@ describe('AdminDropsController', () => {
   let paymentsService: jest.Mocked<
     Pick<PaymentsService, 'finalizeActiveHoldsForDrop' | 'cancelActiveHoldsForDrop'>
   >;
+  let productionService: jest.Mocked<Pick<ProductionService, 'ensurePackageForDrop'>>;
 
   const request = {
     ip: '127.0.0.1',
@@ -56,9 +58,13 @@ describe('AdminDropsController', () => {
       finalizeActiveHoldsForDrop: jest.fn(),
       cancelActiveHoldsForDrop: jest.fn(),
     };
+    productionService = {
+      ensurePackageForDrop: jest.fn(),
+    };
     controller = new AdminDropsController(
       dropsService as unknown as DropsService,
       paymentsService as unknown as PaymentsService,
+      productionService as unknown as ProductionService,
     );
   });
 
@@ -109,11 +115,13 @@ describe('AdminDropsController', () => {
     );
     expect(paymentsService.finalizeActiveHoldsForDrop).not.toHaveBeenCalled();
     expect(paymentsService.cancelActiveHoldsForDrop).not.toHaveBeenCalled();
+    expect(productionService.ensurePackageForDrop).not.toHaveBeenCalled();
   });
 
-  it('finalizes active holds when a drop reaches a successful payment state', async () => {
+  it('finalizes active holds and creates a production package for successful drops', async () => {
     dropsService.transitionDrop.mockResolvedValue({ id: 'drop-id' } as never);
     paymentsService.finalizeActiveHoldsForDrop.mockResolvedValue({} as never);
+    productionService.ensurePackageForDrop.mockResolvedValue({} as never);
 
     await expect(
       controller.transition('drop-id', { status: DropStatus.Successful }, request),
@@ -121,6 +129,18 @@ describe('AdminDropsController', () => {
 
     expect(paymentsService.finalizeActiveHoldsForDrop).toHaveBeenCalledWith('drop-id');
     expect(paymentsService.cancelActiveHoldsForDrop).not.toHaveBeenCalled();
+    expect(productionService.ensurePackageForDrop).toHaveBeenCalledWith(
+      'drop-id',
+      {
+        id: 'admin-id',
+        email: 'admin@example.com',
+        role: UserRole.Admin,
+      },
+      {
+        ip: '127.0.0.1',
+        userAgent: 'jest',
+      },
+    );
   });
 
   it('cancels active holds when a drop fails', async () => {
@@ -133,5 +153,6 @@ describe('AdminDropsController', () => {
 
     expect(paymentsService.cancelActiveHoldsForDrop).toHaveBeenCalledWith('drop-id');
     expect(paymentsService.finalizeActiveHoldsForDrop).not.toHaveBeenCalled();
+    expect(productionService.ensurePackageForDrop).not.toHaveBeenCalled();
   });
 });

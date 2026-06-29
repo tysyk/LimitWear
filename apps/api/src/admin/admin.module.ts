@@ -4,7 +4,9 @@ import { DeliveryModule } from '../delivery/delivery.module';
 import { DropsModule } from '../drops/drops.module';
 import { DesignsModule } from '../designs/designs.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { ProductionModule } from '../production/production.module';
 import { RequestsModule } from '../requests/requests.module';
+import { AdminProductionController } from './admin-production.controller';
 import { UsersModule } from '../users/users.module';
 import { AdminDeliveryController } from './admin-delivery.controller';
 import { AdminDesignsController } from './admin-designs.controller';
@@ -18,6 +20,7 @@ import { AdminRequestsController } from './admin-requests.controller';
     DesignsModule,
     DropsModule,
     PaymentsModule,
+    ProductionModule,
     RequestsModule,
     UsersModule,
   ],
@@ -25,6 +28,7 @@ import { AdminRequestsController } from './admin-requests.controller';
     AdminDeliveryController,
     AdminDesignsController,
     AdminDropsController,
+    AdminProductionController,
     AdminRequestsController,
   ],
 })

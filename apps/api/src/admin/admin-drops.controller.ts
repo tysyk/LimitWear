@@ -21,6 +21,7 @@ import { TransitionDropDto } from '../drops/dto/transition-drop.dto';
 import { UpdateDropDto } from '../drops/dto/update-drop.dto';
 import { DropsService } from '../drops/drops.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ProductionService } from '../production/production.service';
 
 @ApiTags('Admin Drops')
 @ApiCookieAuth(AUTH_COOKIE_NAME)
@@ -30,6 +31,7 @@ export class AdminDropsController {
   constructor(
     private readonly dropsService: DropsService,
     private readonly paymentsService: PaymentsService,
+    private readonly productionService: ProductionService,
   ) {}
 
   @ApiOperation({ summary: 'Create a draft drop' })
@@ -83,6 +85,17 @@ export class AdminDropsController {
       await this.paymentsService.cancelActiveHoldsForDrop(id);
     }
 
+    if (this.shouldCreateProductionPackage(dto.status)) {
+      await this.productionService.ensurePackageForDrop(
+        id,
+        { id: request.user.id, email: request.user.email, role: request.user.role },
+        {
+          ip: request.ip,
+          userAgent: request.headers['user-agent'],
+        },
+      );
+    }
+
     return drop;
   }
 
@@ -92,5 +105,9 @@ export class AdminDropsController {
 
   private shouldCancelHolds(status: DropStatus): boolean {
     return [DropStatus.Failed, DropStatus.Cancelled].includes(status);
+  }
+
+  private shouldCreateProductionPackage(status: DropStatus): boolean {
+    return [DropStatus.SoldOut, DropStatus.Successful, DropStatus.Completed].includes(status);
   }
 }

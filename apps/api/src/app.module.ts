@@ -14,6 +14,7 @@ import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ProductionModule } from './production/production.module';
 import { RequestsModule } from './requests/requests.module';
 import { UsersModule } from './users/users.module';
 
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     OrdersModule,
     PaymentsModule,
+    ProductionModule,
     RequestsModule,
     UsersModule,
   ],
