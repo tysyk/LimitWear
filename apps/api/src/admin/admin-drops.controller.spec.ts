@@ -2,12 +2,16 @@ import { DropStatus, UserRole, UserStatus } from '@limitwear/shared';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { DropsService } from '../drops/drops.service';
 import { ProductType } from '../drops/schemas/drop.schema';
+import { PaymentsService } from '../payments/payments.service';
 import { AdminDropsController } from './admin-drops.controller';
 
 describe('AdminDropsController', () => {
   let controller: AdminDropsController;
   let dropsService: jest.Mocked<
     Pick<DropsService, 'createAdminDrop' | 'updateAdminDrop' | 'launchDrop' | 'transitionDrop'>
+  >;
+  let paymentsService: jest.Mocked<
+    Pick<PaymentsService, 'finalizeActiveHoldsForDrop' | 'cancelActiveHoldsForDrop'>
   >;
 
   const request = {
@@ -48,7 +52,14 @@ describe('AdminDropsController', () => {
       launchDrop: jest.fn(),
       transitionDrop: jest.fn(),
     };
-    controller = new AdminDropsController(dropsService as unknown as DropsService);
+    paymentsService = {
+      finalizeActiveHoldsForDrop: jest.fn(),
+      cancelActiveHoldsForDrop: jest.fn(),
+    };
+    controller = new AdminDropsController(
+      dropsService as unknown as DropsService,
+      paymentsService as unknown as PaymentsService,
+    );
   });
 
   it('delegates drop creation to the drops service', async () => {
@@ -96,5 +107,31 @@ describe('AdminDropsController', () => {
         userAgent: 'jest',
       },
     );
+    expect(paymentsService.finalizeActiveHoldsForDrop).not.toHaveBeenCalled();
+    expect(paymentsService.cancelActiveHoldsForDrop).not.toHaveBeenCalled();
+  });
+
+  it('finalizes active holds when a drop reaches a successful payment state', async () => {
+    dropsService.transitionDrop.mockResolvedValue({ id: 'drop-id' } as never);
+    paymentsService.finalizeActiveHoldsForDrop.mockResolvedValue({} as never);
+
+    await expect(
+      controller.transition('drop-id', { status: DropStatus.Successful }, request),
+    ).resolves.toEqual({ id: 'drop-id' });
+
+    expect(paymentsService.finalizeActiveHoldsForDrop).toHaveBeenCalledWith('drop-id');
+    expect(paymentsService.cancelActiveHoldsForDrop).not.toHaveBeenCalled();
+  });
+
+  it('cancels active holds when a drop fails', async () => {
+    dropsService.transitionDrop.mockResolvedValue({ id: 'drop-id' } as never);
+    paymentsService.cancelActiveHoldsForDrop.mockResolvedValue({} as never);
+
+    await expect(
+      controller.transition('drop-id', { status: DropStatus.Failed }, request),
+    ).resolves.toEqual({ id: 'drop-id' });
+
+    expect(paymentsService.cancelActiveHoldsForDrop).toHaveBeenCalledWith('drop-id');
+    expect(paymentsService.finalizeActiveHoldsForDrop).not.toHaveBeenCalled();
   });
 });

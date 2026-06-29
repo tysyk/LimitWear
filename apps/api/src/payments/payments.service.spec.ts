@@ -14,6 +14,7 @@ describe('PaymentsService', () => {
   let paymentModel: {
     create: jest.Mock;
     findOne: jest.Mock;
+    find: jest.Mock;
   };
   let orderModel: {
     findById: jest.Mock;
@@ -21,12 +22,15 @@ describe('PaymentsService', () => {
   };
   let monobankService: {
     createHoldInvoice: jest.Mock;
+    finalizeHold: jest.Mock;
+    cancelHold: jest.Mock;
   };
   let dropsService: {
     confirmPaymentHoldQuantity: jest.Mock;
   };
   let auditService: {
     recordWebhookAction: jest.Mock;
+    recordSystemAction: jest.Mock;
   };
   let configService: ConfigService;
   let notificationsService: {
@@ -48,10 +52,46 @@ describe('PaymentsService', () => {
     isPhoneVerified: true,
   };
 
+  interface TestOrderDocument {
+    _id: Types.ObjectId;
+    userId: Types.ObjectId;
+    dropId: Types.ObjectId;
+    status: OrderStatus;
+    quantity: number;
+    size: string;
+    priceAtPurchase: number;
+    currency: string;
+    paymentId?: Types.ObjectId;
+    save: jest.Mock;
+  }
+
+  interface TestPaymentDocument {
+    _id: Types.ObjectId;
+    orderId: Types.ObjectId;
+    userId: Types.ObjectId;
+    dropId: Types.ObjectId;
+    providerInvoiceId?: string;
+    invoiceUrl?: string;
+    status: PaymentStatus;
+    rawWebhookEvents: Array<{
+      eventId: string;
+      invoiceId: string;
+      status?: string;
+      receivedAt: Date;
+      payload: Record<string, unknown>;
+    }>;
+    finalizedAt?: Date;
+    cancelledAt?: Date;
+    failedAt?: Date;
+    failureReason?: string;
+    save: jest.Mock;
+  }
+
   beforeEach(() => {
     paymentModel = {
       create: jest.fn(),
       findOne: jest.fn(),
+      find: jest.fn(),
     };
     orderModel = {
       findById: jest.fn(),
@@ -59,12 +99,15 @@ describe('PaymentsService', () => {
     };
     monobankService = {
       createHoldInvoice: jest.fn(),
+      finalizeHold: jest.fn(),
+      cancelHold: jest.fn(),
     };
     dropsService = {
       confirmPaymentHoldQuantity: jest.fn(),
     };
     auditService = {
       recordWebhookAction: jest.fn(),
+      recordSystemAction: jest.fn(),
     };
     configService = new ConfigService();
     notificationsService = {
@@ -313,7 +356,120 @@ describe('PaymentsService', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  function createOrderDocument(overrides: Record<string, unknown> = {}): Record<string, any> {
+  it('finalizes active holds for a successful drop', async () => {
+    const payment = createPaymentDocument({
+      providerInvoiceId: 'invoice-id',
+      status: PaymentStatus.HoldCreated,
+    });
+    paymentModel.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([payment]) });
+    orderModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+    monobankService.finalizeHold.mockResolvedValue(undefined);
+
+    await expect(service.finalizeActiveHoldsForDrop(dropId.toHexString())).resolves.toEqual({
+      dropId: dropId.toHexString(),
+      total: 1,
+      succeeded: 1,
+      failed: 0,
+      paymentIds: [paymentId.toHexString()],
+    });
+
+    expect(paymentModel.find).toHaveBeenCalledWith({
+      dropId,
+      status: {
+        $in: [PaymentStatus.HoldCreated, PaymentStatus.Authorized],
+      },
+    });
+    expect(monobankService.finalizeHold).toHaveBeenCalledWith('invoice-id');
+    expect(payment.status).toBe(PaymentStatus.Finalized);
+    expect(payment.finalizedAt).toBeInstanceOf(Date);
+    expect(payment.save).toHaveBeenCalled();
+    expect(orderModel.findByIdAndUpdate).toHaveBeenCalledWith(orderId, {
+      status: OrderStatus.Paid,
+      paidAt: payment.finalizedAt,
+      canCancel: false,
+      cancelBlockedReason: 'Payment was finalized.',
+    });
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId,
+        type: 'payment.finalized',
+        relatedEntityType: 'payment',
+        relatedEntityId: paymentId,
+      }),
+    );
+  });
+
+  it('cancels active holds for a failed drop', async () => {
+    const payment = createPaymentDocument({
+      providerInvoiceId: 'invoice-id',
+      status: PaymentStatus.HoldCreated,
+    });
+    paymentModel.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([payment]) });
+    orderModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+    monobankService.cancelHold.mockResolvedValue(undefined);
+
+    await expect(service.cancelActiveHoldsForDrop(dropId.toHexString())).resolves.toEqual({
+      dropId: dropId.toHexString(),
+      total: 1,
+      succeeded: 1,
+      failed: 0,
+      paymentIds: [paymentId.toHexString()],
+    });
+
+    expect(monobankService.cancelHold).toHaveBeenCalledWith('invoice-id');
+    expect(payment.status).toBe(PaymentStatus.Cancelled);
+    expect(payment.cancelledAt).toBeInstanceOf(Date);
+    expect(orderModel.findByIdAndUpdate).toHaveBeenCalledWith(orderId, {
+      status: OrderStatus.Cancelled,
+      cancelledAt: payment.cancelledAt,
+      canCancel: false,
+      cancelBlockedReason: 'Drop did not happen.',
+    });
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId,
+        type: 'payment.cancelled',
+      }),
+    );
+  });
+
+  it('records lifecycle failures and continues processing remaining holds', async () => {
+    const failedPayment = createPaymentDocument({
+      _id: new Types.ObjectId(),
+      providerInvoiceId: 'failed-invoice',
+      status: PaymentStatus.HoldCreated,
+    });
+    const succeededPayment = createPaymentDocument({
+      providerInvoiceId: 'invoice-id',
+      status: PaymentStatus.HoldCreated,
+    });
+    paymentModel.find.mockReturnValue({
+      exec: jest.fn().mockResolvedValue([failedPayment, succeededPayment]),
+    });
+    orderModel.findByIdAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+    monobankService.finalizeHold
+      .mockRejectedValueOnce(new Error('provider timeout'))
+      .mockResolvedValueOnce(undefined);
+    auditService.recordSystemAction.mockResolvedValue({});
+
+    await expect(service.finalizeActiveHoldsForDrop(dropId.toHexString())).resolves.toEqual({
+      dropId: dropId.toHexString(),
+      total: 2,
+      succeeded: 1,
+      failed: 1,
+      paymentIds: [failedPayment._id.toHexString(), paymentId.toHexString()],
+    });
+
+    expect(auditService.recordSystemAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'payment.finalize_failed',
+        entity: { type: 'payment', id: failedPayment._id.toHexString() },
+      }),
+    );
+    expect(succeededPayment.status).toBe(PaymentStatus.Finalized);
+  });
+
+  function createOrderDocument(overrides: Partial<TestOrderDocument> = {}): TestOrderDocument {
     return {
       _id: orderId,
       userId,
@@ -329,7 +485,9 @@ describe('PaymentsService', () => {
     };
   }
 
-  function createPaymentDocument(overrides: Record<string, unknown> = {}): Record<string, any> {
+  function createPaymentDocument(
+    overrides: Partial<TestPaymentDocument> = {},
+  ): TestPaymentDocument {
     return {
       _id: paymentId,
       orderId,
