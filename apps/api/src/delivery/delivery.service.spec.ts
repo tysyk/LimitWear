@@ -1,0 +1,122 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { DeliveryStatus, OrderStatus } from '@limitwear/shared';
+import { Types } from 'mongoose';
+import { DeliveryService } from './delivery.service';
+import { DeliveryType } from '../orders/dto/create-order.dto';
+
+describe('DeliveryService', () => {
+  let service: DeliveryService;
+  let deliveryModel: { create: jest.Mock };
+  let orderModel: { findById: jest.Mock };
+  let novaPoshtaService: { createTtn: jest.Mock };
+
+  const orderId = new Types.ObjectId();
+  const userId = new Types.ObjectId();
+  const dropId = new Types.ObjectId();
+  const deliveryId = new Types.ObjectId();
+
+  beforeEach(() => {
+    deliveryModel = { create: jest.fn() };
+    orderModel = { findById: jest.fn() };
+    novaPoshtaService = { createTtn: jest.fn() };
+    service = new DeliveryService(
+      deliveryModel as never,
+      orderModel as never,
+      novaPoshtaService as never,
+    );
+  });
+
+  it('creates a TTN delivery for a ready-to-ship order', async () => {
+    const order = createOrder();
+    const delivery = { _id: deliveryId };
+    orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
+    novaPoshtaService.createTtn.mockResolvedValue({
+      trackingNumber: '20450000000000',
+      documentRef: 'document-ref',
+    });
+    deliveryModel.create.mockResolvedValue(delivery);
+
+    await expect(
+      service.createTtnForOrder(orderId.toHexString(), {
+        weight: 1,
+        seatsAmount: 1,
+        description: 'LimitWear order',
+        cost: 2200,
+      }),
+    ).resolves.toBe(delivery);
+
+    expect(novaPoshtaService.createTtn).toHaveBeenCalledWith({
+      orderId: orderId.toHexString(),
+      recipientName: 'Buyer',
+      recipientPhone: '+380991234567',
+      cityRef: 'city-ref',
+      warehouseRef: 'warehouse-ref',
+      weight: 1,
+      seatsAmount: 1,
+      description: 'LimitWear order',
+      cost: 2200,
+    });
+    expect(deliveryModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId,
+        userId,
+        dropId,
+        trackingNumber: '20450000000000',
+        novaPostDocumentRef: 'document-ref',
+        status: DeliveryStatus.TtnCreated,
+      }),
+    );
+    expect(order.deliveryId).toBe(deliveryId);
+    expect(order.save).toHaveBeenCalled();
+  });
+
+  it('rejects missing, non-ready, and already delivered orders', async () => {
+    await expect(service.createTtnForOrder('invalid', validDto())).rejects.toThrow(
+      NotFoundException,
+    );
+
+    orderModel.findById.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+    await expect(service.createTtnForOrder(orderId.toHexString(), validDto())).rejects.toThrow(
+      NotFoundException,
+    );
+
+    orderModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValue(createOrder({ status: OrderStatus.Paid })),
+    });
+    await expect(service.createTtnForOrder(orderId.toHexString(), validDto())).rejects.toThrow(
+      BadRequestException,
+    );
+
+    orderModel.findById.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValue(createOrder({ deliveryId: new Types.ObjectId() })),
+    });
+    await expect(service.createTtnForOrder(orderId.toHexString(), validDto())).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  function validDto() {
+    return { weight: 1, seatsAmount: 1, description: 'LimitWear order', cost: 2200 };
+  }
+
+  function createOrder(overrides: Record<string, unknown> = {}) {
+    return {
+      _id: orderId,
+      userId,
+      dropId,
+      status: OrderStatus.ReadyToShip,
+      recipientName: 'Buyer',
+      recipientPhone: '+380991234567',
+      deliveryData: {
+        cityRef: 'city-ref',
+        cityName: 'Kyiv',
+        warehouseRef: 'warehouse-ref',
+        warehouseName: 'Warehouse #1',
+        deliveryType: DeliveryType.Warehouse,
+      },
+      deliveryId: undefined,
+      save: jest.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
+  }
+});
