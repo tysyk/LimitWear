@@ -30,6 +30,7 @@ export default function RootLayout({
             <Link href="/login">Login</Link>
             <Link href="/profile">Profile</Link>
             <Link href="/designer">Designer</Link>
+            <Link href="/admin/delivery">Admin delivery</Link>
           </nav>
         </header>
         <main className="site-main">{children}</main>
