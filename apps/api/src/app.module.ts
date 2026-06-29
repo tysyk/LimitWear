@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { CollectionsModule } from './collections/collections.module';
 import { DatabaseModule } from './database/database.module';
+import { DeliveryModule } from './delivery/delivery.module';
 import { DesignerModule } from './designer/designer.module';
 import { DesignerProfilesModule } from './designer-profiles/designer-profiles.module';
 import { DesignsModule } from './designs/designs.module';
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     AuditModule,
     CollectionsModule,
     DatabaseModule,
+    DeliveryModule,
     DesignerModule,
     DesignerProfilesModule,
     DesignsModule,
