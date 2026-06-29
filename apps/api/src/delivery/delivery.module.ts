@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditModule } from '../audit/audit.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 import { DeliveryController } from './delivery.controller';
 import { DeliveryService } from './delivery.service';
@@ -10,6 +11,7 @@ import { Delivery, DeliverySchema } from './schemas/delivery.schema';
 @Module({
   imports: [
     AuditModule,
+    NotificationsModule,
     MongooseModule.forFeature([
       {
         name: Delivery.name,

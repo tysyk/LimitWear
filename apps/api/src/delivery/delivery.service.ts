@@ -4,6 +4,7 @@ import { DeliveryStatus, OrderStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTtnDto, validateCreateTtnDto } from './dto/create-ttn.dto';
 import { NovaPoshtaService } from './nova-poshta.service';
 import { Delivery, DeliveryDocument, DeliveryProvider } from './schemas/delivery.schema';
@@ -30,6 +31,7 @@ export class DeliveryService {
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     private readonly novaPoshtaService: NovaPoshtaService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createTtnForOrder(orderId: string, dto: CreateTtnDto): Promise<DeliveryDocument> {
@@ -71,6 +73,18 @@ export class DeliveryService {
 
     order.deliveryId = delivery._id;
     await order.save();
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: order.userId,
+      type: 'delivery.ttn_created',
+      title: 'TTN created',
+      message: `Your Nova Poshta tracking number is ${delivery.trackingNumber}.`,
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        deliveryId: delivery._id.toHexString(),
+        trackingNumber: delivery.trackingNumber,
+      },
+    });
     return delivery;
   }
 
@@ -104,6 +118,17 @@ export class DeliveryService {
           reason: error instanceof Error ? error.message : 'Unknown TTN creation error.',
         },
         reason: 'Nova Poshta TTN creation failed; admin follow-up required.',
+      });
+      await this.notificationsService.safelyCreateServiceNotification({
+        userId: order.userId,
+        type: 'delivery.ttn_failed',
+        title: 'Delivery problem',
+        message: 'We could not create a Nova Poshta TTN for your order yet. Admin is reviewing it.',
+        relatedEntityType: 'order',
+        relatedEntityId: order._id,
+        metadata: {
+          status: OrderStatus.DeliveryProblem,
+        },
       });
       throw error;
     }

@@ -4,6 +4,7 @@ import { DropStatus, OrderStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
 import { AuditRequestContext, AuditService, type ActorUserInput } from '../audit/audit.service';
 import { Drop, DropDocument } from '../drops/schemas/drop.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
 import {
   ProductionPackage,
@@ -34,6 +35,7 @@ export class ProductionService {
     @InjectModel(Drop.name) private readonly dropModel: Model<DropDocument>,
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listProductionPackages(): Promise<ProductionPackage[]> {
@@ -190,6 +192,14 @@ export class ProductionService {
   }
 
   private async markOrdersReadyToShip(orderIds: Types.ObjectId[]): Promise<void> {
+    const orders = await this.orderModel
+      .find({
+        _id: {
+          $in: orderIds,
+        },
+      })
+      .exec();
+
     await this.orderModel
       .updateMany(
         {
@@ -207,6 +217,22 @@ export class ProductionService {
         },
       )
       .exec();
+
+    await Promise.all(
+      orders.map((order) =>
+        this.notificationsService.safelyCreateServiceNotification({
+          userId: order.userId,
+          type: 'production.ready_to_ship',
+          title: 'Order ready to ship',
+          message: 'Your LimitWear order is ready for Nova Poshta delivery.',
+          relatedEntityType: 'order',
+          relatedEntityId: order._id,
+          metadata: {
+            productionPackageOrderId: order._id.toHexString(),
+          },
+        }),
+      ),
+    );
   }
 }
 
