@@ -84,6 +84,13 @@ describe('CreateOrderDto validation', () => {
     expect(() =>
       validateCreateOrderDto({
         ...validDto(),
+        warehouseRef: '',
+      }),
+    ).toThrow(BadRequestException);
+
+    expect(() =>
+      validateCreateOrderDto({
+        ...validDto(),
         warehouseName: ' ',
       }),
     ).toThrow(BadRequestException);
