@@ -667,6 +667,67 @@ a {
   width: min(100% - 48px, 1180px);
 }
 
+.admin-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  width: min(100% - 48px, 1280px);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.admin-sidebar h2 {
+  font-size: 1.7rem;
+  letter-spacing: -0.045em;
+}
+
+.admin-sidebar p:not(.eyebrow) {
+  margin-top: 8px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.admin-sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-sidebar a {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-sidebar a:hover,
+.admin-sidebar a.is-active {
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.admin-content {
+  display: grid;
+  justify-items: stretch;
+}
+
+.admin-content > .admin-panel {
+  width: 100%;
+}
+
 .delivery-form label {
   position: relative;
   display: grid;
@@ -924,6 +985,15 @@ a {
 
   .admin-split {
     grid-template-columns: 1fr;
+  }
+
+  .admin-layout {
+    grid-template-columns: 1fr;
+    width: min(100% - 32px, 1280px);
+  }
+
+  .admin-sidebar {
+    position: static;
   }
 
   .notification-toolbar {
