@@ -1,8 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { NotificationCategory, NotificationChannel, NotificationStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
+import {
+  UpdateNotificationSettingsDto,
+  validateUpdateNotificationSettingsDto,
+} from './dto/update-notification-settings.dto';
 import { Notification, NotificationDocument } from './schemas/notification.schema';
+import {
+  NotificationSettings,
+  NotificationSettingsDocument,
+} from './schemas/notification-settings.schema';
 
 export interface CreateNotificationInput {
   userId: Types.ObjectId | string;
@@ -16,11 +24,17 @@ export interface CreateNotificationInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface ListNotificationsInput {
+  status?: string;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
+    @InjectModel(NotificationSettings.name)
+    private readonly notificationSettingsModel: Model<NotificationSettingsDocument>,
   ) {}
 
   async createForUser(input: CreateNotificationInput): Promise<NotificationDocument> {
@@ -90,6 +104,98 @@ export class NotificationsService {
     } catch {
       return undefined;
     }
+  }
+
+  async listForUser(
+    userId: Types.ObjectId | string,
+    input: ListNotificationsInput = {},
+  ): Promise<Notification[]> {
+    const filter: Record<string, unknown> = {
+      userId: this.toObjectId(userId),
+    };
+
+    if (input.status) {
+      if (!Object.values(NotificationStatus).includes(input.status as NotificationStatus)) {
+        throw new BadRequestException('Notification status filter is invalid.');
+      }
+      filter.status = input.status;
+    }
+
+    return this.notificationModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .lean<Notification[]>()
+      .exec();
+  }
+
+  async markAllRead(userId: Types.ObjectId | string): Promise<{ modifiedCount: number }> {
+    const result = await this.notificationModel
+      .updateMany(
+        {
+          userId: this.toObjectId(userId),
+          status: NotificationStatus.Unread,
+        },
+        {
+          $set: {
+            status: NotificationStatus.Read,
+            readAt: new Date(),
+          },
+        },
+      )
+      .exec();
+
+    return {
+      modifiedCount: result.modifiedCount ?? 0,
+    };
+  }
+
+  async getSettings(userId: Types.ObjectId | string): Promise<NotificationSettingsDocument> {
+    const normalizedUserId = this.toObjectId(userId);
+    const existing = await this.notificationSettingsModel
+      .findOne({ userId: normalizedUserId })
+      .exec();
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.notificationSettingsModel.create({
+      userId: normalizedUserId,
+      emailEnabled: true,
+      telegramEnabled: false,
+      wishlistEnabled: true,
+      secondChanceEnabled: true,
+      marketingOptIn: false,
+      inAppEnabled: true,
+    });
+  }
+
+  async updateSettings(
+    userId: Types.ObjectId | string,
+    dto: UpdateNotificationSettingsDto,
+  ): Promise<NotificationSettingsDocument> {
+    const input = validateUpdateNotificationSettingsDto(dto);
+    const normalizedUserId = this.toObjectId(userId);
+
+    return this.notificationSettingsModel
+      .findOneAndUpdate(
+        { userId: normalizedUserId },
+        {
+          $set: {
+            ...input,
+            inAppEnabled: true,
+          },
+          $setOnInsert: {
+            userId: normalizedUserId,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        },
+      )
+      .exec();
   }
 
   private toObjectId(value: Types.ObjectId | string): Types.ObjectId {
