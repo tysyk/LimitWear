@@ -3,6 +3,7 @@ import { OrderStatus, UserRole, UserStatus } from '@limitwear/shared';
 import { Types } from 'mongoose';
 import { DeliveryType } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -12,6 +13,9 @@ describe('OrdersService', () => {
   let dropsService: {
     validatePendingOrderQuantity: jest.Mock;
   };
+  let notificationsService: jest.Mocked<
+    Pick<NotificationsService, 'safelyCreateServiceNotification'>
+  >;
 
   const userId = new Types.ObjectId();
   const dropId = new Types.ObjectId();
@@ -48,12 +52,23 @@ describe('OrdersService', () => {
     dropsService = {
       validatePendingOrderQuantity: jest.fn(),
     };
-    service = new OrdersService(orderModel as never, dropsService as never);
+    notificationsService = {
+      safelyCreateServiceNotification: jest.fn().mockResolvedValue({}),
+    };
+    service = new OrdersService(
+      orderModel as never,
+      dropsService as never,
+      notificationsService as unknown as NotificationsService,
+    );
   });
 
   it('creates a pending payment order without incrementing drop quantity', async () => {
     const createdOrder = {
       _id: new Types.ObjectId(),
+      userId,
+      dropId,
+      size: 'M',
+      quantity: 1,
       status: OrderStatus.PendingPayment,
     };
     dropsService.validatePendingOrderQuantity.mockResolvedValue({
@@ -92,6 +107,19 @@ describe('OrdersService', () => {
         deliveryType: DeliveryType.Warehouse,
       },
       canCancel: true,
+    });
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'order.created',
+      title: 'Order created',
+      message: 'Your LimitWear order was created and is waiting for payment.',
+      relatedEntityType: 'order',
+      relatedEntityId: createdOrder._id,
+      metadata: {
+        dropId: dropId.toHexString(),
+        size: 'M',
+        quantity: 1,
+      },
     });
   });
 

@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import { DeliveryService } from './delivery.service';
 import { DeliveryType } from '../orders/dto/create-order.dto';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('DeliveryService', () => {
   let service: DeliveryService;
@@ -11,6 +12,9 @@ describe('DeliveryService', () => {
   let orderModel: { findById: jest.Mock };
   let novaPoshtaService: { createTtn: jest.Mock };
   let auditService: jest.Mocked<Pick<AuditService, 'recordSystemAction'>>;
+  let notificationsService: jest.Mocked<
+    Pick<NotificationsService, 'safelyCreateServiceNotification'>
+  >;
 
   const orderId = new Types.ObjectId();
   const userId = new Types.ObjectId();
@@ -22,17 +26,21 @@ describe('DeliveryService', () => {
     orderModel = { findById: jest.fn() };
     novaPoshtaService = { createTtn: jest.fn() };
     auditService = { recordSystemAction: jest.fn().mockResolvedValue({}) };
+    notificationsService = {
+      safelyCreateServiceNotification: jest.fn().mockResolvedValue({}),
+    };
     service = new DeliveryService(
       deliveryModel as never,
       orderModel as never,
       novaPoshtaService as never,
       auditService as unknown as AuditService,
+      notificationsService as unknown as NotificationsService,
     );
   });
 
   it('creates a TTN delivery for a ready-to-ship order', async () => {
     const order = createOrder();
-    const delivery = { _id: deliveryId };
+    const delivery = { _id: deliveryId, trackingNumber: '20450000000000' };
     orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
     novaPoshtaService.createTtn.mockResolvedValue({
       trackingNumber: '20450000000000',
@@ -72,6 +80,18 @@ describe('DeliveryService', () => {
     );
     expect(order.deliveryId).toBe(deliveryId);
     expect(order.save).toHaveBeenCalled();
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'delivery.ttn_created',
+      title: 'TTN created',
+      message: 'Your Nova Poshta tracking number is 20450000000000.',
+      relatedEntityType: 'order',
+      relatedEntityId: orderId,
+      metadata: {
+        deliveryId: deliveryId.toHexString(),
+        trackingNumber: '20450000000000',
+      },
+    });
   });
 
   it('marks the order as a delivery problem and creates an admin follow-up source when TTN fails', async () => {
@@ -98,6 +118,17 @@ describe('DeliveryService', () => {
         reason: 'Nova Poshta returned an error.',
       },
       reason: 'Nova Poshta TTN creation failed; admin follow-up required.',
+    });
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'delivery.ttn_failed',
+      title: 'Delivery problem',
+      message: 'We could not create a Nova Poshta TTN for your order yet. Admin is reviewing it.',
+      relatedEntityType: 'order',
+      relatedEntityId: orderId,
+      metadata: {
+        status: OrderStatus.DeliveryProblem,
+      },
     });
   });
 

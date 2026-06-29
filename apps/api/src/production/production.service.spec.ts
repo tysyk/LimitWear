@@ -3,6 +3,7 @@ import { DropStatus, OrderStatus, UserRole } from '@limitwear/shared';
 import { Types } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
 import { ProductType } from '../drops/schemas/drop.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ProductionService } from './production.service';
 import { ProductionPackageStatus } from './schemas/production-package.schema';
 
@@ -17,6 +18,9 @@ describe('ProductionService', () => {
   let dropModel: { findById: jest.Mock };
   let orderModel: { find: jest.Mock; updateMany: jest.Mock };
   let auditService: jest.Mocked<Pick<AuditService, 'recordSystemAction' | 'recordAdminAction'>>;
+  let notificationsService: jest.Mocked<
+    Pick<NotificationsService, 'safelyCreateServiceNotification'>
+  >;
 
   const packageId = new Types.ObjectId();
   const dropId = new Types.ObjectId();
@@ -40,11 +44,15 @@ describe('ProductionService', () => {
       recordSystemAction: jest.fn().mockResolvedValue({}),
       recordAdminAction: jest.fn().mockResolvedValue({}),
     };
+    notificationsService = {
+      safelyCreateServiceNotification: jest.fn().mockResolvedValue({}),
+    };
     service = new ProductionService(
       productionPackageModel as never,
       dropModel as never,
       orderModel as never,
       auditService as unknown as AuditService,
+      notificationsService as unknown as NotificationsService,
     );
   });
 
@@ -119,6 +127,10 @@ describe('ProductionService', () => {
     productionPackageModel.findById.mockReturnValue({
       exec: jest.fn().mockResolvedValue(productionPackage),
     });
+    const order = createOrder({ status: OrderStatus.InProduction });
+    orderModel.find.mockReturnValue({
+      exec: jest.fn().mockResolvedValue([order]),
+    });
     orderModel.updateMany.mockReturnValue({
       exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
     });
@@ -149,6 +161,17 @@ describe('ProductionService', () => {
         action: 'production.ready_to_ship',
       }),
     );
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId: order.userId,
+      type: 'production.ready_to_ship',
+      title: 'Order ready to ship',
+      message: 'Your LimitWear order is ready for Nova Poshta delivery.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        productionPackageOrderId: order._id.toHexString(),
+      },
+    });
   });
 
   it('rejects invalid production package transitions', async () => {
@@ -183,6 +206,7 @@ describe('ProductionService', () => {
   function createOrder(overrides: Record<string, unknown> = {}) {
     return {
       _id: new Types.ObjectId(),
+      userId: new Types.ObjectId(),
       size: 'M',
       quantity: 1,
       status: OrderStatus.Paid,
