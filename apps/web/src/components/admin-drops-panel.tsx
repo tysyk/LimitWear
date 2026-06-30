@@ -109,13 +109,13 @@ export function AdminDropsPanel() {
   }, []);
 
   const progress = useMemo(() => getProgress(selectedDrop), [selectedDrop]);
-  const nextStatuses = selectedDrop ? NEXT_STATUSES[selectedDrop.status] ?? [] : [];
+  const nextStatuses = selectedDrop ? (NEXT_STATUSES[selectedDrop.status] ?? []) : [];
 
   async function refreshDrops(nextSelectedId?: string) {
     const items = await getAdminDrops();
     setDrops(items);
     const id = nextSelectedId || selectedId || items[0]?._id || '';
-    const selected = id ? items.find((item) => item._id === id) ?? null : null;
+    const selected = id ? (items.find((item) => item._id === id) ?? null) : null;
     setSelectedId(id);
     setSelectedDrop(selected);
     if (selected) {
@@ -221,7 +221,11 @@ export function AdminDropsPanel() {
 
       <div className="admin-split">
         <aside className="admin-list">
-          <button className={mode === 'create' ? 'is-active' : ''} onClick={handleNew} type="button">
+          <button
+            className={mode === 'create' ? 'is-active' : ''}
+            onClick={handleNew}
+            type="button"
+          >
             <strong>+ New drop</strong>
             <span>Create draft</span>
           </button>
@@ -349,14 +353,38 @@ export function AdminDropsPanel() {
             </div>
 
             <div className="form-grid">
-              <Field label="Min quantity" name="minQuantity" type="number" form={form} setForm={setForm} />
-              <Field label="Max quantity" name="maxQuantity" type="number" form={form} setForm={setForm} />
+              <Field
+                label="Min quantity"
+                name="minQuantity"
+                type="number"
+                form={form}
+                setForm={setForm}
+              />
+              <Field
+                label="Max quantity"
+                name="maxQuantity"
+                type="number"
+                form={form}
+                setForm={setForm}
+              />
               <Field label="Sizes" name="sizeOptions" form={form} setForm={setForm} />
             </div>
 
             <div className="form-grid">
-              <Field label="Starts at" name="startsAt" type="datetime-local" form={form} setForm={setForm} />
-              <Field label="Ends at" name="endsAt" type="datetime-local" form={form} setForm={setForm} />
+              <Field
+                label="Starts at"
+                name="startsAt"
+                type="datetime-local"
+                form={form}
+                setForm={setForm}
+              />
+              <Field
+                label="Ends at"
+                name="endsAt"
+                type="datetime-local"
+                form={form}
+                setForm={setForm}
+              />
             </div>
 
             <div className="form-grid">
