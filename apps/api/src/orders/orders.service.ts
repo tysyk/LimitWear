@@ -18,6 +18,12 @@ import {
   validateCreateOrderDto,
   ValidatedCreateOrderInput,
 } from './dto/create-order.dto';
+import {
+  UpdateOrderDeliveryDto,
+  validateUpdateOrderDeliveryDto,
+  ValidatedUpdateOrderDeliveryInput,
+} from './dto/update-order-delivery.dto';
+import { UpdateOrderSizeDto, validateUpdateOrderSizeDto } from './dto/update-order-size.dto';
 import { Order, OrderDocument } from './schemas/order.schema';
 
 @Injectable()
@@ -100,7 +106,69 @@ export class OrdersService {
     return order;
   }
 
-  private toDeliveryData(input: ValidatedCreateOrderInput) {
+  async updateOrderSize(
+    user: PublicUser,
+    orderId: string,
+    dto: UpdateOrderSizeDto,
+  ): Promise<OrderDocument> {
+    const input = validateUpdateOrderSizeDto(dto);
+    const order = await this.findUserOrder(user, orderId);
+    this.assertOrderCanBeUpdated(order);
+
+    await this.dropsService.validateOrderSize(order.dropId.toHexString(), input.size);
+
+    order.size = input.size;
+    const updated = await order.save();
+
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: order.userId,
+      type: 'order.size_updated',
+      title: 'Order size updated',
+      message: 'Your LimitWear order size was updated.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        dropId: order.dropId.toHexString(),
+        size: order.size,
+        quantity: order.quantity,
+      },
+    });
+
+    return updated;
+  }
+
+  async updateOrderDelivery(
+    user: PublicUser,
+    orderId: string,
+    dto: UpdateOrderDeliveryDto,
+  ): Promise<OrderDocument> {
+    const input = validateUpdateOrderDeliveryDto(dto);
+    const order = await this.findUserOrder(user, orderId);
+    this.assertOrderCanBeUpdated(order);
+
+    order.recipientName = input.recipientName;
+    order.recipientPhone = input.recipientPhone;
+    order.deliveryData = this.toDeliveryData(input);
+    const updated = await order.save();
+
+    await this.notificationsService.safelyCreateServiceNotification({
+      userId: order.userId,
+      type: 'order.delivery_updated',
+      title: 'Order delivery updated',
+      message: 'Your LimitWear order delivery details were updated.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        dropId: order.dropId.toHexString(),
+        cityName: input.cityName,
+        warehouseName: input.warehouseName,
+      },
+    });
+
+    return updated;
+  }
+
+  private toDeliveryData(input: ValidatedCreateOrderInput | ValidatedUpdateOrderDeliveryInput) {
     return {
       cityRef: input.cityRef,
       cityName: input.cityName,
@@ -134,11 +202,28 @@ export class OrdersService {
       );
     }
   }
+
+  private assertOrderCanBeUpdated(order: OrderDocument): void {
+    if (BLOCKED_UPDATE_STATUSES.includes(order.status)) {
+      throw new BadRequestException('Order can no longer be updated after production lock.');
+    }
+  }
 }
 
 const BLOCKED_CANCEL_STATUSES = [
   OrderStatus.Guaranteed,
   OrderStatus.Paid,
+  OrderStatus.Cancelled,
+  OrderStatus.InProduction,
+  OrderStatus.ReadyToShip,
+  OrderStatus.Shipped,
+  OrderStatus.Delivered,
+  OrderStatus.Returned,
+  OrderStatus.Refunded,
+  OrderStatus.DeliveryProblem,
+];
+
+const BLOCKED_UPDATE_STATUSES = [
   OrderStatus.Cancelled,
   OrderStatus.InProduction,
   OrderStatus.ReadyToShip,

@@ -14,6 +14,7 @@ describe('OrdersService', () => {
   };
   let dropsService: {
     validatePendingOrderQuantity: jest.Mock;
+    validateOrderSize: jest.Mock;
   };
   let notificationsService: jest.Mocked<
     Pick<NotificationsService, 'safelyCreateServiceNotification'>
@@ -55,6 +56,7 @@ describe('OrdersService', () => {
     };
     dropsService = {
       validatePendingOrderQuantity: jest.fn(),
+      validateOrderSize: jest.fn(),
     };
     notificationsService = {
       safelyCreateServiceNotification: jest.fn().mockResolvedValue({}),
@@ -216,6 +218,95 @@ describe('OrdersService', () => {
     );
   });
 
+  it('updates order size before production lock after validating drop size options', async () => {
+    const order = createOrderDocument({
+      status: OrderStatus.Guaranteed,
+    });
+    orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
+    dropsService.validateOrderSize.mockResolvedValue(undefined);
+
+    await expect(
+      service.updateOrderSize(user, order._id.toHexString(), { size: 'L' }),
+    ).resolves.toBe(order);
+
+    expect(dropsService.validateOrderSize).toHaveBeenCalledWith(dropId.toHexString(), 'L');
+    expect(order.size).toBe('L');
+    expect(order.save).toHaveBeenCalled();
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'order.size_updated',
+      title: 'Order size updated',
+      message: 'Your LimitWear order size was updated.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        dropId: dropId.toHexString(),
+        size: 'L',
+        quantity: 1,
+      },
+    });
+  });
+
+  it('updates order delivery before production lock', async () => {
+    const order = createOrderDocument({
+      status: OrderStatus.Reserved,
+    });
+    orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
+
+    await expect(
+      service.updateOrderDelivery(user, order._id.toHexString(), {
+        recipientName: 'Updated User',
+        recipientPhone: '+380991111111',
+        cityRef: 'new-city-ref',
+        cityName: 'Kyiv',
+        warehouseRef: 'new-warehouse-ref',
+        warehouseName: 'Warehouse 7',
+        deliveryType: DeliveryType.Postomat,
+      }),
+    ).resolves.toBe(order);
+
+    expect(order.recipientName).toBe('Updated User');
+    expect(order.recipientPhone).toBe('+380991111111');
+    expect(order.deliveryData).toEqual({
+      cityRef: 'new-city-ref',
+      cityName: 'Kyiv',
+      warehouseRef: 'new-warehouse-ref',
+      warehouseName: 'Warehouse 7',
+      deliveryType: DeliveryType.Postomat,
+    });
+    expect(order.save).toHaveBeenCalled();
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'order.delivery_updated',
+      title: 'Order delivery updated',
+      message: 'Your LimitWear order delivery details were updated.',
+      relatedEntityType: 'order',
+      relatedEntityId: order._id,
+      metadata: {
+        dropId: dropId.toHexString(),
+        cityName: 'Kyiv',
+        warehouseName: 'Warehouse 7',
+      },
+    });
+  });
+
+  it('blocks size and delivery updates after production lock', async () => {
+    const order = createOrderDocument({
+      status: OrderStatus.InProduction,
+    });
+    orderModel.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(order) });
+
+    await expect(
+      service.updateOrderSize(user, order._id.toHexString(), { size: 'L' }),
+    ).rejects.toThrow(BadRequestException);
+    await expect(service.updateOrderDelivery(user, order._id.toHexString(), dto)).rejects.toThrow(
+      BadRequestException,
+    );
+
+    expect(dropsService.validateOrderSize).not.toHaveBeenCalled();
+    expect(order.save).not.toHaveBeenCalled();
+  });
+
   function createOrderDocument(overrides: Record<string, unknown> = {}) {
     return {
       _id: new Types.ObjectId(),
@@ -228,10 +319,21 @@ describe('OrdersService', () => {
       size: 'M',
       priceAtPurchase: 2200,
       currency: 'UAH',
+      recipientName: 'Олег Тисик',
+      recipientPhone: '+380991234567',
+      deliveryData: {
+        cityRef: 'city-ref',
+        cityName: 'Львів',
+        warehouseRef: 'warehouse-ref',
+        warehouseName: 'Відділення №1',
+        deliveryType: DeliveryType.Warehouse,
+      },
       canCancel: true,
       cancelledAt: undefined as Date | undefined,
       cancelBlockedReason: undefined as string | undefined,
-      save: jest.fn().mockResolvedValue(undefined),
+      save: jest.fn().mockImplementation(function save(this: unknown) {
+        return Promise.resolve(this);
+      }),
       ...overrides,
     };
   }

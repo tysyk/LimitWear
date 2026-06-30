@@ -165,6 +165,15 @@ export class DropsService {
     return drop;
   }
 
+  async validateOrderSize(dropId: string, size: string): Promise<void> {
+    const drop = await this.findDrop(dropId);
+    const normalizedSize = this.normalizeSize(size);
+
+    if (!drop.sizeOptions.includes(normalizedSize)) {
+      throw new BadRequestException('Selected size is not available for this drop.');
+    }
+  }
+
   async confirmPaymentHoldQuantity(
     input: DropQuantityReservation,
     request?: AuditRequestContext,

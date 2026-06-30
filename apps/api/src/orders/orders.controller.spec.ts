@@ -6,7 +6,9 @@ import { OrdersService } from './orders.service';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
-  let ordersService: jest.Mocked<Pick<OrdersService, 'createOrder' | 'cancelOrder'>>;
+  let ordersService: jest.Mocked<
+    Pick<OrdersService, 'createOrder' | 'cancelOrder' | 'updateOrderSize' | 'updateOrderDelivery'>
+  >;
 
   const request = {
     user: {
@@ -37,6 +39,8 @@ describe('OrdersController', () => {
     ordersService = {
       createOrder: jest.fn(),
       cancelOrder: jest.fn(),
+      updateOrderSize: jest.fn(),
+      updateOrderDelivery: jest.fn(),
     };
     controller = new OrdersController(ordersService as unknown as OrdersService);
   });
@@ -56,5 +60,30 @@ describe('OrdersController', () => {
       status: 'cancelled',
     });
     expect(ordersService.cancelOrder).toHaveBeenCalledWith(request.user, 'order-id');
+  });
+
+  it('delegates order size updates to the orders service', async () => {
+    ordersService.updateOrderSize.mockResolvedValue({ id: 'order-id', size: 'L' } as never);
+
+    await expect(controller.updateOrderSize('order-id', { size: 'L' }, request)).resolves.toEqual({
+      id: 'order-id',
+      size: 'L',
+    });
+    expect(ordersService.updateOrderSize).toHaveBeenCalledWith(request.user, 'order-id', {
+      size: 'L',
+    });
+  });
+
+  it('delegates order delivery updates to the orders service', async () => {
+    ordersService.updateOrderDelivery.mockResolvedValue({
+      id: 'order-id',
+      recipientName: 'Updated User',
+    } as never);
+
+    await expect(controller.updateOrderDelivery('order-id', dto, request)).resolves.toEqual({
+      id: 'order-id',
+      recipientName: 'Updated User',
+    });
+    expect(ordersService.updateOrderDelivery).toHaveBeenCalledWith(request.user, 'order-id', dto);
   });
 });

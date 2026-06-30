@@ -419,6 +419,22 @@ describe('DropsService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('validates order size updates against drop size options', async () => {
+    const activeDrop = createDropDocument({
+      status: DropStatus.Guaranteed,
+      sizeOptions: ['S', 'M', 'L'],
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(activeDrop));
+
+    await expect(
+      service.validateOrderSize(activeDrop._id.toHexString(), ' L '),
+    ).resolves.toBeUndefined();
+
+    await expect(service.validateOrderSize(activeDrop._id.toHexString(), 'XL')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
   it('confirms payment hold with an atomic quantity increment', async () => {
     const activeDrop = createDropDocument({
       status: DropStatus.ActiveCollecting,
