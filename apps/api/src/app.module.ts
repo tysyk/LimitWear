@@ -16,6 +16,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ProductionModule } from './production/production.module';
 import { RequestsModule } from './requests/requests.module';
+import { SecondChanceModule } from './second-chance/second-chance.module';
 import { UsersModule } from './users/users.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 
@@ -40,6 +41,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     PaymentsModule,
     ProductionModule,
     RequestsModule,
+    SecondChanceModule,
     UsersModule,
     WishlistModule,
   ],
