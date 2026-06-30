@@ -8,6 +8,7 @@ import {
   getDropProgress,
 } from '../../../components/drop-card';
 import { DeliveryCheckoutForm } from '../../../components/delivery-checkout-form';
+import { WishlistButton } from '../../../components/wishlist-button';
 import { getDrop, getRelatedDrops } from '../../../lib/storefront-api';
 
 interface DropDetailPageProps {
@@ -77,6 +78,7 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
             <a className="button" href="#checkout">
               Reserve
             </a>
+            {drop._id ? <WishlistButton dropId={drop._id} /> : null}
             <span>Checkout creates a pending payment order with delivery data.</span>
           </div>
         </div>
