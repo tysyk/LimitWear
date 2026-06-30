@@ -949,6 +949,30 @@ a {
   color: var(--muted);
 }
 
+.wishlist-widget {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.wishlist-widget small {
+  max-width: 320px;
+}
+
+.wishlist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.wishlist-actions .button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 0.72rem;
+}
+
 .toggle-row {
   display: flex !important;
   align-items: center;
