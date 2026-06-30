@@ -4,6 +4,7 @@ import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { validateEnv } from './config/env.validation';
 import { CollectionsModule } from './collections/collections.module';
 import { DatabaseModule } from './database/database.module';
 import { DeliveryModule } from './delivery/delivery.module';
@@ -26,6 +27,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnv,
     }),
     AdminModule,
     AnalyticsModule,

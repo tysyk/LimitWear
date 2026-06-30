@@ -3,15 +3,22 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { createCorsOptions } from './app.cors';
+import { applyRateLimit } from './app.rate-limit';
+import { applySecurityHeaders, shouldEnableSwagger } from './app.security';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 5000);
 
+  applySecurityHeaders(app, configService);
   app.enableCors(createCorsOptions(configService));
+  applyRateLimit(app, configService);
   app.enableShutdownHooks();
-  setupSwagger(app);
+
+  if (shouldEnableSwagger(configService)) {
+    setupSwagger(app);
+  }
 
   await app.listen(port);
 }

@@ -29,6 +29,31 @@ Set the MongoDB connection string with `DATABASE_URL`. The legacy `MONGO_URI`
 name is supported temporarily for local development. See `.env.example` for
 the complete configuration inventory.
 
+## Environment hardening
+
+Local development keeps external integrations lazy so the API can boot without
+real Monobank, Nova Poshta, or S3 credentials. In `NODE_ENV=production`, startup
+fails unless required secrets and public URLs are configured with real values:
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `CLIENT_URL` and `CORS_ORIGINS`
+- `MONO_TOKEN`, `MONO_WEBHOOK_URL`, `MONO_WEBHOOK_SECRET`
+- `NOVA_POSHTA_API_KEY`
+- `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
+  `S3_PUBLIC_BASE_URL`
+
+Production also requires `COOKIE_SECURE=true`, rejects `CORS_ORIGINS=*`, and
+rejects placeholder values such as `replace-with-*` or `<account-id>`.
+
+Swagger docs are enabled by default outside production. In production, `/docs`
+is disabled unless `SWAGGER_ENABLED=true` is set explicitly.
+
+The API also applies an in-memory request limiter as a backend safety net. It is
+enabled by default with `RATE_LIMIT_MAX=300` requests per
+`RATE_LIMIT_WINDOW_MS=60000` milliseconds per client IP. Use edge/WAF limits in
+production as the primary defense.
+
 ## Health check
 
 ```http
@@ -39,7 +64,13 @@ Response:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "timestamp": "2026-07-01T00:00:00.000Z",
+  "uptimeSeconds": 42,
+  "environment": "production",
+  "checks": {
+    "database": "connected"
+  }
 }
 ```
 
