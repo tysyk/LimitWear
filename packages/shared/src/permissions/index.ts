@@ -98,6 +98,7 @@ export const USER_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     Permission.OrdersRead,
     Permission.ProfileRead,
     Permission.ProfileUpdate,
+    Permission.WishlistManage,
   ],
 };
 

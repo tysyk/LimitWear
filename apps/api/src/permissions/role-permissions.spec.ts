@@ -19,6 +19,7 @@ describe('role permissions', () => {
         Permission.AdminPayoutsMarkPaid,
         Permission.AdminRequestsManage,
         Permission.AdminUsersRead,
+        Permission.WishlistManage,
       ]),
     );
   });
