@@ -109,6 +109,23 @@ export class DropsService {
     );
   }
 
+  async findAdminDrops(): Promise<Drop[]> {
+    return this.dropModel
+      .find()
+      .sort({
+        createdAt: -1,
+      })
+      .lean<Drop[]>()
+      .exec();
+  }
+
+  async findAdminDrop(dropId: string): Promise<Drop> {
+    if (!Types.ObjectId.isValid(dropId)) throw new NotFoundException('Drop was not found');
+    const drop = await this.dropModel.findById(dropId).lean<Drop>().exec();
+    if (!drop) throw new NotFoundException('Drop was not found');
+    return drop;
+  }
+
   async transitionDrop(
     admin: PublicUser,
     dropId: string,

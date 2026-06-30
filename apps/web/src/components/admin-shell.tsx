@@ -7,6 +7,7 @@ import { getCurrentUser, PublicUser } from '../lib/auth-api';
 
 const ADMIN_LINKS = [
   { href: '/admin', label: 'Action Center' },
+  { href: '/admin/drops', label: 'Drops' },
   { href: '/admin/delivery', label: 'Delivery' },
   { href: '/admin/production', label: 'Production' },
   { href: '/admin/second-chance', label: 'Second Chance' },

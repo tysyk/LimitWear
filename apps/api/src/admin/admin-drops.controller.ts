@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -33,6 +34,20 @@ export class AdminDropsController {
     private readonly paymentsService: PaymentsService,
     private readonly productionService: ProductionService,
   ) {}
+
+  @ApiOperation({ summary: 'List all drops for admin operations' })
+  @RequirePermissions(Permission.AdminDropsRead)
+  @Get()
+  list() {
+    return this.dropsService.findAdminDrops();
+  }
+
+  @ApiOperation({ summary: 'Get a drop for admin operations' })
+  @RequirePermissions(Permission.AdminDropsRead)
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.dropsService.findAdminDrop(id);
+  }
 
   @ApiOperation({ summary: 'Create a draft drop' })
   @RequirePermissions(Permission.AdminDropsCreate)

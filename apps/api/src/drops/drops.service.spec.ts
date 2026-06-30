@@ -129,6 +129,37 @@ describe('DropsService', () => {
     });
   });
 
+  it('lists all drops for admin operations', async () => {
+    const query = createQueryMock([{ slug: 'draft-drop', status: DropStatus.Draft }]);
+    dropModel.find.mockReturnValue(query);
+
+    await expect(service.findAdminDrops()).resolves.toEqual([
+      { slug: 'draft-drop', status: DropStatus.Draft },
+    ]);
+
+    expect(dropModel.find).toHaveBeenCalledWith();
+    expect(query.sort).toHaveBeenCalledWith({
+      createdAt: -1,
+    });
+  });
+
+  it('returns a drop by id for admin operations', async () => {
+    const drop = { slug: 'draft-drop', status: DropStatus.Draft };
+    const query = createQueryMock(drop);
+    dropModel.findById.mockReturnValue(query);
+
+    await expect(service.findAdminDrop(designId.toHexString())).resolves.toEqual(drop);
+    expect(dropModel.findById).toHaveBeenCalledWith(designId.toHexString());
+  });
+
+  it('throws when an admin drop id is missing or invalid', async () => {
+    await expect(service.findAdminDrop('bad-id')).rejects.toThrow(NotFoundException);
+
+    const query = createQueryMock(null);
+    dropModel.findById.mockReturnValue(query);
+    await expect(service.findAdminDrop(designId.toHexString())).rejects.toThrow(NotFoundException);
+  });
+
   it('returns a public drop by normalized slug', async () => {
     const query = createQueryMock({ slug: 'angel-skull', status: DropStatus.ActiveCollecting });
     dropModel.findOne.mockReturnValue(query);

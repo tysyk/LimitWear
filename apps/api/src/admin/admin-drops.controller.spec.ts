@@ -9,7 +9,15 @@ import { AdminDropsController } from './admin-drops.controller';
 describe('AdminDropsController', () => {
   let controller: AdminDropsController;
   let dropsService: jest.Mocked<
-    Pick<DropsService, 'createAdminDrop' | 'updateAdminDrop' | 'launchDrop' | 'transitionDrop'>
+    Pick<
+      DropsService,
+      | 'findAdminDrops'
+      | 'findAdminDrop'
+      | 'createAdminDrop'
+      | 'updateAdminDrop'
+      | 'launchDrop'
+      | 'transitionDrop'
+    >
   >;
   let paymentsService: jest.Mocked<
     Pick<PaymentsService, 'finalizeActiveHoldsForDrop' | 'cancelActiveHoldsForDrop'>
@@ -49,6 +57,8 @@ describe('AdminDropsController', () => {
 
   beforeEach(() => {
     dropsService = {
+      findAdminDrops: jest.fn(),
+      findAdminDrop: jest.fn(),
       createAdminDrop: jest.fn(),
       updateAdminDrop: jest.fn(),
       launchDrop: jest.fn(),
@@ -66,6 +76,20 @@ describe('AdminDropsController', () => {
       paymentsService as unknown as PaymentsService,
       productionService as unknown as ProductionService,
     );
+  });
+
+  it('lists drops for admin operations', async () => {
+    dropsService.findAdminDrops.mockResolvedValue([{ id: 'drop-id' }] as never);
+
+    await expect(controller.list()).resolves.toEqual([{ id: 'drop-id' }]);
+    expect(dropsService.findAdminDrops).toHaveBeenCalledWith();
+  });
+
+  it('loads a single drop for admin operations', async () => {
+    dropsService.findAdminDrop.mockResolvedValue({ id: 'drop-id' } as never);
+
+    await expect(controller.findOne('drop-id')).resolves.toEqual({ id: 'drop-id' });
+    expect(dropsService.findAdminDrop).toHaveBeenCalledWith('drop-id');
   });
 
   it('delegates drop creation to the drops service', async () => {
