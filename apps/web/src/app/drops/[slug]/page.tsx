@@ -7,7 +7,7 @@ import {
   formatStatus,
   getDropProgress,
 } from '../../../components/drop-card';
-import { DeliveryCheckoutForm } from '../../../components/delivery-checkout-form';
+import { CheckoutPanel } from '../../../components/checkout-panel';
 import { WishlistButton } from '../../../components/wishlist-button';
 import { getDrop, getRelatedDrops } from '../../../lib/storefront-api';
 
@@ -75,25 +75,11 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
           </div>
 
           <div className="drop-detail__actions">
-            <a className="button" href="#checkout">
-              Reserve
-            </a>
+            <CheckoutPanel dropId={drop._id} sizeOptions={drop.sizeOptions} />
             {drop._id ? <WishlistButton dropId={drop._id} /> : null}
-            <span>Checkout creates a pending payment order with delivery data.</span>
           </div>
         </div>
       </section>
-
-      {drop._id ? (
-        <section className="storefront-section" id="checkout">
-          <DeliveryCheckoutForm dropId={drop._id} sizeOptions={drop.sizeOptions} />
-        </section>
-      ) : (
-        <section className="empty-state" id="checkout">
-          <h2>Checkout unavailable</h2>
-          <p>Drop id is missing from the API response, so order creation is disabled.</p>
-        </section>
-      )}
 
       <section className="drop-info-grid">
         <InfoBlock

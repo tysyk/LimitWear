@@ -12,9 +12,14 @@ import { createOrder } from '../lib/orders-api';
 interface DeliveryCheckoutFormProps {
   dropId: string;
   sizeOptions: string[];
+  onOrderCreated?: (orderId?: string) => void;
 }
 
-export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFormProps) {
+export function DeliveryCheckoutForm({
+  dropId,
+  onOrderCreated,
+  sizeOptions,
+}: DeliveryCheckoutFormProps) {
   const [cityQuery, setCityQuery] = useState('');
   const [cities, setCities] = useState<DeliveryCity[]>([]);
   const [city, setCity] = useState<DeliveryCity | null>(null);
@@ -40,7 +45,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
       searchDeliveryCities(cityQuery)
         .then(setCities)
         .catch((caughtError) => {
-          setError(caughtError instanceof Error ? caughtError.message : 'Не вдалося знайти міста.');
+          setError(caughtError instanceof Error ? caughtError.message : 'Could not find cities.');
         })
         .finally(() => setIsSearchingCities(false));
     }, 350);
@@ -50,10 +55,12 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
 
   const preview = useMemo(() => {
     if (!city || !warehouse) {
-      return 'Оберіть місто і відділення, щоб побачити превʼю доставки.';
+      return 'Choose city and warehouse to preview delivery details.';
     }
 
-    return `${recipientName || 'Отримувач'} · ${recipientPhone || 'телефон'} · ${city.name}, ${warehouse.name}`;
+    return `${recipientName || 'Recipient'} · ${recipientPhone || 'phone'} · ${city.name}, ${
+      warehouse.name
+    }`;
   }, [city, recipientName, recipientPhone, warehouse]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -62,7 +69,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
     setSuccess(null);
 
     if (!city || !warehouse) {
-      setError('Оберіть місто та відділення Нової Пошти.');
+      setError('Choose Nova Poshta city and warehouse.');
       return;
     }
 
@@ -79,14 +86,13 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
         cityName: city.name,
         warehouseRef: warehouse.ref,
         warehouseName: warehouse.name,
-        deliveryType: 'warehouse',
+        deliveryType: warehouse.type === 'postomat' ? 'postomat' : 'warehouse',
       });
 
-      setSuccess(`Замовлення створено. ID: ${order._id ?? 'pending'}. Наступний крок — оплата.`);
+      setSuccess(`Pending payment order created. ID: ${order._id ?? 'pending'}.`);
+      onOrderCreated?.(order._id);
     } catch (caughtError) {
-      setError(
-        caughtError instanceof Error ? caughtError.message : 'Не вдалося створити замовлення.',
-      );
+      setError(caughtError instanceof Error ? caughtError.message : 'Could not create order.');
     } finally {
       setIsSubmitting(false);
     }
@@ -106,9 +112,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
       setWarehouses(items);
       setWarehouse(items[0] ?? null);
     } catch (caughtError) {
-      setError(
-        caughtError instanceof Error ? caughtError.message : 'Не вдалося завантажити відділення.',
-      );
+      setError(caughtError instanceof Error ? caughtError.message : 'Could not load warehouses.');
     } finally {
       setIsLoadingWarehouses(false);
     }
@@ -118,16 +122,16 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
     <form className="delivery-form" onSubmit={handleSubmit}>
       <div className="section-heading">
         <p className="eyebrow">Checkout delivery</p>
-        <h2>Забронювати дроп</h2>
+        <h2>Reserve this drop</h2>
         <p>
-          Оберіть розмір, контакти і відділення Нової Пошти. Backend все одно перевіряє drop,
-          quantity і delivery data.
+          Choose a size, contact details and Nova Poshta branch. This creates a pending payment
+          order; money is reserved only on the payment step.
         </p>
       </div>
 
       <div className="form-grid">
         <label>
-          Розмір
+          Size
           <select value={size} onChange={(event) => setSize(event.target.value)} required>
             {sizeOptions.map((option) => (
               <option key={option} value={option}>
@@ -138,7 +142,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
         </label>
 
         <label>
-          Кількість
+          Quantity
           <input
             min="1"
             type="number"
@@ -151,17 +155,17 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
 
       <div className="form-grid">
         <label>
-          Отримувач
+          Recipient
           <input
             value={recipientName}
             onChange={(event) => setRecipientName(event.target.value)}
-            placeholder="Олег Тисик"
+            placeholder="Oleh Tysyk"
             required
           />
         </label>
 
         <label>
-          Телефон
+          Phone
           <input
             value={recipientPhone}
             onChange={(event) => setRecipientPhone(event.target.value)}
@@ -172,7 +176,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
       </div>
 
       <label className="autocomplete-field">
-        Місто Нової Пошти
+        Nova Poshta city
         <input
           value={cityQuery}
           onChange={(event) => {
@@ -182,10 +186,10 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
             setWarehouses([]);
             setCityQuery(event.target.value);
           }}
-          placeholder="Почніть вводити місто"
+          placeholder="Start typing city"
           required
         />
-        {isSearchingCities ? <span className="field-hint">Шукаю міста...</span> : null}
+        {isSearchingCities ? <span className="field-hint">Searching cities...</span> : null}
         {cities.length > 0 ? (
           <div className="autocomplete-list">
             {cities.map((item) => (
@@ -199,7 +203,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
       </label>
 
       <label>
-        Відділення / поштомат
+        Warehouse / postomat
         <select
           disabled={!city || isLoadingWarehouses}
           value={warehouse?.ref ?? ''}
@@ -209,7 +213,7 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
           required
         >
           <option value="">
-            {isLoadingWarehouses ? 'Завантажую відділення...' : 'Оберіть відділення'}
+            {isLoadingWarehouses ? 'Loading warehouses...' : 'Choose warehouse'}
           </option>
           {warehouses.map((item) => (
             <option key={item.ref} value={item.ref}>
@@ -224,11 +228,19 @@ export function DeliveryCheckoutForm({ dropId, sizeOptions }: DeliveryCheckoutFo
         <p>{preview}</p>
       </div>
 
+      <div className="delivery-preview">
+        <p className="eyebrow">Payment note</p>
+        <p>
+          The order starts as pending payment. LimitWear does not increase reserved quantity until
+          the backend receives trusted Monobank hold confirmation.
+        </p>
+      </div>
+
       {error ? <p className="form-error">{error}</p> : null}
       {success ? <p className="form-success">{success}</p> : null}
 
       <button className="button" disabled={isSubmitting || sizeOptions.length === 0} type="submit">
-        {isSubmitting ? 'Створюю...' : 'Створити order'}
+        {isSubmitting ? 'Creating...' : 'Create pending order'}
       </button>
     </form>
   );
