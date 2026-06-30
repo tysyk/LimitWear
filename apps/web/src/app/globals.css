@@ -728,6 +728,64 @@ a {
   width: 100%;
 }
 
+.admin-muted {
+  max-width: 760px;
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.admin-metric-grid,
+.admin-inbox-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admin-inbox-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.admin-metric-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.admin-metric-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-metric-card strong {
+  font-size: 2.4rem;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.admin-metric-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.admin-check-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .delivery-form label {
   position: relative;
   display: grid;
