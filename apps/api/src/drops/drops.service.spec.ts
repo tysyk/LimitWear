@@ -379,6 +379,27 @@ describe('DropsService', () => {
     expect(dropModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
+  it('rejects pending order quantity for inactive drops', async () => {
+    const draftDrop = createDropDocument({
+      status: DropStatus.Draft,
+      currentQuantity: 0,
+      minQuantity: 10,
+      maxQuantity: 20,
+    });
+    dropModel.findById.mockReturnValue(createQueryMock(draftDrop));
+
+    await expect(
+      service.validatePendingOrderQuantity({
+        dropId: draftDrop._id.toHexString(),
+        size: 'M',
+        quantity: 1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(draftDrop.currentQuantity).toBe(0);
+    expect(dropModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
   it('rejects pending order quantity that would overbook a drop', async () => {
     const nearlySoldOutDrop = createDropDocument({
       status: DropStatus.ActiveCollecting,
