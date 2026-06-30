@@ -11,6 +11,7 @@ const ADMIN_LINKS = [
   { href: '/admin/delivery', label: 'Delivery' },
   { href: '/admin/production', label: 'Production' },
   { href: '/admin/second-chance', label: 'Second Chance' },
+  { href: '/admin/payouts', label: 'Payouts' },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {

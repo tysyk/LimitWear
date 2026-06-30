@@ -146,11 +146,11 @@ export function DesignerCabinet() {
           <h2>Manage designs</h2>
           <p>Create drafts, submit work for review, and see moderation comments.</p>
         </Link>
-        <div className="surface-card">
+        <Link className="surface-card" href="/designer/payouts">
           <span className="eyebrow">Payouts</span>
-          <h2>Coming soon</h2>
-          <p>Payout balance and payment history will appear after payout backend is ready.</p>
-        </div>
+          <h2>Payment history</h2>
+          <p>View calculated payout records, statuses, and manual transfer history.</p>
+        </Link>
         <div className="surface-card">
           <span className="eyebrow">Analytics</span>
           <h2>Coming soon</h2>
