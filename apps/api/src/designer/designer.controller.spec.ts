@@ -1,4 +1,5 @@
 import { UserRole, UserStatus } from '@limitwear/shared';
+import { AnalyticsService } from '../analytics/analytics.service';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { DesignerController } from './designer.controller';
 import { DesignsService } from '../designs/designs.service';
@@ -20,6 +21,7 @@ describe('DesignerController', () => {
   >;
   let filesService: jest.Mocked<Pick<FilesService, 'upload'>>;
   let payoutsService: jest.Mocked<Pick<PayoutsService, 'listDesignerPayouts'>>;
+  let analyticsService: jest.Mocked<Pick<AnalyticsService, 'getDesignerAnalytics'>>;
 
   const request = {
     user: {
@@ -49,11 +51,15 @@ describe('DesignerController', () => {
     payoutsService = {
       listDesignerPayouts: jest.fn(),
     };
+    analyticsService = {
+      getDesignerAnalytics: jest.fn(),
+    };
     controller = new DesignerController(
       requestsService as unknown as RequestsService,
       designsService as unknown as DesignsService,
       filesService as unknown as FilesService,
       payoutsService as unknown as PayoutsService,
+      analyticsService as unknown as AnalyticsService,
     );
   });
 
@@ -153,5 +159,24 @@ describe('DesignerController', () => {
 
     await expect(controller.findPayouts(request)).resolves.toEqual([]);
     expect(payoutsService.listDesignerPayouts).toHaveBeenCalledWith(request.user.id);
+  });
+
+  it('delegates designer analytics to the analytics service', async () => {
+    analyticsService.getDesignerAnalytics.mockResolvedValue({
+      designs: { total: 1, approved: 1 },
+      drops: { total: 1, successful: 1 },
+      orders: { soldUnits: 3 },
+      revenue: { gross: 4500, currency: 'UAH' },
+      payouts: { pendingAmount: 0, paidAmount: 0, readyToPayAmount: 450 },
+    });
+
+    await expect(controller.getAnalytics(request)).resolves.toEqual({
+      designs: { total: 1, approved: 1 },
+      drops: { total: 1, successful: 1 },
+      orders: { soldUnits: 3 },
+      revenue: { gross: 4500, currency: 'UAH' },
+      payouts: { pendingAmount: 0, paidAmount: 0, readyToPayAmount: 450 },
+    });
+    expect(analyticsService.getDesignerAnalytics).toHaveBeenCalledWith(request.user.id);
   });
 });

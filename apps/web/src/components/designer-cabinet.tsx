@@ -151,11 +151,11 @@ export function DesignerCabinet() {
           <h2>Payment history</h2>
           <p>View calculated payout records, statuses, and manual transfer history.</p>
         </Link>
-        <div className="surface-card">
+        <Link className="surface-card" href="/designer/analytics">
           <span className="eyebrow">Analytics</span>
-          <h2>Coming soon</h2>
-          <p>Designer stats will connect after drops, orders, and analytics services are ready.</p>
-        </div>
+          <h2>Performance</h2>
+          <p>Track approved designs, successful drops, sold units, revenue, and payouts.</p>
+        </Link>
       </div>
     </DesignerShell>
   );

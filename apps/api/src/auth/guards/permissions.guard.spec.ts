@@ -79,6 +79,28 @@ describe('PermissionsGuard', () => {
     ).toThrow(ForbiddenException);
   });
 
+  it('blocks non-designers from designer analytics by default', () => {
+    reflector.getAllAndOverride.mockReturnValue([Permission.DesignerAnalyticsRead]);
+
+    expect(() =>
+      guard.canActivate(
+        createExecutionContext({
+          role: UserRole.User,
+          permissions: [],
+        }),
+      ),
+    ).toThrow(ForbiddenException);
+
+    expect(() =>
+      guard.canActivate(
+        createExecutionContext({
+          role: UserRole.Admin,
+          permissions: [],
+        }),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
   it('blocks when only one of multiple required permissions is present', () => {
     reflector.getAllAndOverride.mockReturnValue([
       Permission.AdminUsersRead,

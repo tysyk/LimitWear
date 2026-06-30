@@ -20,6 +20,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { DesignsService } from '../designs/designs.service';
 import { CreateDesignDto } from '../designs/dto/create-design.dto';
 import { UpdateDesignDto } from '../designs/dto/update-design.dto';
@@ -40,6 +41,7 @@ export class DesignerController {
     private readonly designsService: DesignsService,
     private readonly filesService: FilesService,
     private readonly payoutsService: PayoutsService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @ApiOperation({ summary: 'Submit a designer application request' })
@@ -151,6 +153,13 @@ export class DesignerController {
   @Get('payouts')
   findPayouts(@Req() request: AuthenticatedRequest) {
     return this.payoutsService.listDesignerPayouts(request.user.id);
+  }
+
+  @ApiOperation({ summary: 'Get current designer analytics' })
+  @RequirePermissions(Permission.DesignerAnalyticsRead)
+  @Get('analytics')
+  getAnalytics(@Req() request: AuthenticatedRequest) {
+    return this.analyticsService.getDesignerAnalytics(request.user.id);
   }
 
   private getDesignFileCategory(category: string): FileAssetCategory {

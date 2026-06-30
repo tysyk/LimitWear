@@ -40,11 +40,18 @@ describe('role permissions', () => {
       expect.arrayContaining([
         Permission.DesignerDesignsCreate,
         Permission.DesignerDesignsSubmit,
+        Permission.DesignerAnalyticsRead,
         Permission.DesignerPayoutsRead,
       ]),
     );
     expect(designerPermissions).not.toContain(Permission.AdminDropsLaunch);
     expect(designerPermissions).not.toContain(Permission.AdminDesignsReview);
+  });
+
+  it('keeps designer analytics scoped to designer role by default', () => {
+    expect(designerPermissions).toContain(Permission.DesignerAnalyticsRead);
+    expect(userPermissions).not.toContain(Permission.DesignerAnalyticsRead);
+    expect(adminPermissions).not.toContain(Permission.DesignerAnalyticsRead);
   });
 
   it('supports explicit extra permissions without changing role defaults', () => {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { CollectionsModule } from './collections/collections.module';
@@ -27,6 +28,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
       isGlobal: true,
     }),
     AdminModule,
+    AnalyticsModule,
     AuthModule,
     AuditModule,
     CollectionsModule,
