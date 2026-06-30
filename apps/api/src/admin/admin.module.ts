@@ -6,6 +6,8 @@ import { DesignsModule } from '../designs/designs.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ProductionModule } from '../production/production.module';
 import { RequestsModule } from '../requests/requests.module';
+import { SecondChanceModule } from '../second-chance/second-chance.module';
+import { AdminSecondChanceController } from './admin-second-chance.controller';
 import { AdminProductionController } from './admin-production.controller';
 import { UsersModule } from '../users/users.module';
 import { AdminDeliveryController } from './admin-delivery.controller';
@@ -22,6 +24,7 @@ import { AdminRequestsController } from './admin-requests.controller';
     PaymentsModule,
     ProductionModule,
     RequestsModule,
+    SecondChanceModule,
     UsersModule,
   ],
   controllers: [
@@ -30,6 +33,7 @@ import { AdminRequestsController } from './admin-requests.controller';
     AdminDropsController,
     AdminProductionController,
     AdminRequestsController,
+    AdminSecondChanceController,
   ],
 })
 export class AdminModule {}

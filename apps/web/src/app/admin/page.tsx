@@ -26,6 +26,11 @@ const QUEUE_SUMMARY = [
     value: '0',
     description: 'Designer payouts waiting for manual confirmation.',
   },
+  {
+    label: 'Second Chance',
+    value: '0',
+    description: 'Returned or free units waiting for resale decisions.',
+  },
 ];
 
 const INBOX_SECTIONS = [
@@ -39,7 +44,7 @@ const INBOX_SECTIONS = [
   },
   {
     title: 'Operations',
-    items: ['Payment exceptions', 'Delivery problems', 'Production delays'],
+    items: ['Payment exceptions', 'Delivery problems', 'Production delays', 'Second Chance'],
   },
   {
     title: 'Finance',
