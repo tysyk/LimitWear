@@ -163,6 +163,32 @@ export class PaymentsService {
     return this.processActiveHoldsForDrop(dropId, 'cancel');
   }
 
+  async cancelHoldForOrder(order: OrderDocument): Promise<void> {
+    if (!order.paymentId) {
+      return;
+    }
+
+    const payment = await this.paymentModel
+      .findOne({
+        _id: order.paymentId,
+        orderId: order._id,
+      })
+      .exec();
+
+    if (!payment || !this.isCancellablePayment(payment.status)) {
+      return;
+    }
+
+    if (payment.providerInvoiceId) {
+      await this.monobankService.cancelHold(payment.providerInvoiceId);
+    }
+
+    payment.status = PaymentStatus.Cancelled;
+    payment.cancelledAt = new Date();
+    await payment.save();
+    await this.notifyPaymentCancelled(payment);
+  }
+
   private async findUserPendingPaymentOrder(
     user: PublicUser,
     orderId: string,
@@ -415,6 +441,12 @@ export class PaymentsService {
       })
       .exec();
     await this.notifyPaymentCancelled(payment);
+  }
+
+  private isCancellablePayment(status: PaymentStatus): boolean {
+    return [PaymentStatus.Created, PaymentStatus.HoldCreated, PaymentStatus.Authorized].includes(
+      status,
+    );
   }
 
   private async recordHoldLifecycleFailure(

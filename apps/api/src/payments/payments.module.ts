@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
@@ -17,7 +17,7 @@ import { Payment, PaymentSchema } from './schemas/payment.schema';
     AuditModule,
     DropsModule,
     NotificationsModule,
-    OrdersModule,
+    forwardRef(() => OrdersModule),
     MongooseModule.forFeature([
       {
         name: Payment.name,

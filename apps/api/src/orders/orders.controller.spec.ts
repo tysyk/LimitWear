@@ -6,7 +6,7 @@ import { OrdersService } from './orders.service';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
-  let ordersService: jest.Mocked<Pick<OrdersService, 'createOrder'>>;
+  let ordersService: jest.Mocked<Pick<OrdersService, 'createOrder' | 'cancelOrder'>>;
 
   const request = {
     user: {
@@ -36,6 +36,7 @@ describe('OrdersController', () => {
   beforeEach(() => {
     ordersService = {
       createOrder: jest.fn(),
+      cancelOrder: jest.fn(),
     };
     controller = new OrdersController(ordersService as unknown as OrdersService);
   });
@@ -45,5 +46,15 @@ describe('OrdersController', () => {
 
     await expect(controller.createOrder(dto, request)).resolves.toEqual({ id: 'order-id' });
     expect(ordersService.createOrder).toHaveBeenCalledWith(request.user, dto);
+  });
+
+  it('delegates order cancellation to the orders service for the authenticated user', async () => {
+    ordersService.cancelOrder.mockResolvedValue({ id: 'order-id', status: 'cancelled' } as never);
+
+    await expect(controller.cancelOrder('order-id', request)).resolves.toEqual({
+      id: 'order-id',
+      status: 'cancelled',
+    });
+    expect(ordersService.cancelOrder).toHaveBeenCalledWith(request.user, 'order-id');
   });
 });

@@ -399,6 +399,62 @@ describe('PaymentsService', () => {
     );
   });
 
+  it('cancels a payment hold for a user-cancelled order', async () => {
+    const order = createOrderDocument({
+      paymentId,
+    });
+    const payment = createPaymentDocument({
+      providerInvoiceId: 'invoice-id',
+      status: PaymentStatus.HoldCreated,
+    });
+    paymentModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(payment) });
+    monobankService.cancelHold.mockResolvedValue(undefined);
+
+    await expect(service.cancelHoldForOrder(order as never)).resolves.toBeUndefined();
+
+    expect(paymentModel.findOne).toHaveBeenCalledWith({
+      _id: paymentId,
+      orderId,
+    });
+    expect(monobankService.cancelHold).toHaveBeenCalledWith('invoice-id');
+    expect(payment.status).toBe(PaymentStatus.Cancelled);
+    expect(payment.cancelledAt).toBeInstanceOf(Date);
+    expect(payment.save).toHaveBeenCalled();
+    expect(notificationsService.safelyCreateServiceNotification).toHaveBeenCalledWith({
+      userId,
+      type: 'payment.cancelled',
+      title: 'Payment hold cancelled',
+      message: 'The drop did not happen, so the reserved amount was released.',
+      relatedEntityType: 'payment',
+      relatedEntityId: paymentId,
+      metadata: {
+        orderId: orderId.toHexString(),
+        dropId: dropId.toHexString(),
+        status: PaymentStatus.Cancelled,
+      },
+    });
+  });
+
+  it('skips order hold cancellation when payment is missing or already finalized', async () => {
+    const order = createOrderDocument({
+      paymentId,
+    });
+    paymentModel.findOne.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+
+    await expect(service.cancelHoldForOrder(order as never)).resolves.toBeUndefined();
+
+    paymentModel.findOne.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValue(
+        createPaymentDocument({
+          status: PaymentStatus.Finalized,
+        }),
+      ),
+    });
+
+    await expect(service.cancelHoldForOrder(order as never)).resolves.toBeUndefined();
+    expect(monobankService.cancelHold).not.toHaveBeenCalled();
+  });
+
   it('cancels active holds for a failed drop', async () => {
     const payment = createPaymentDocument({
       providerInvoiceId: 'invoice-id',

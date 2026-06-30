@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permission } from '@limitwear/shared';
 import { AUTH_COOKIE_NAME } from '../auth/auth.service';
@@ -21,5 +21,12 @@ export class OrdersController {
   @Post()
   createOrder(@Body() dto: CreateOrderDto, @Req() request: AuthenticatedRequest) {
     return this.ordersService.createOrder(request.user, dto);
+  }
+
+  @ApiOperation({ summary: 'Cancel an order before the drop is guaranteed' })
+  @RequirePermissions(Permission.OrdersUpdate)
+  @Post(':id/cancel')
+  cancelOrder(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.cancelOrder(request.user, id);
   }
 }
