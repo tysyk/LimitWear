@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   UpdateWishlistItemDto,
   validateUpdateWishlistItemDto,
@@ -16,6 +17,7 @@ export class WishlistService {
   constructor(
     @InjectModel(WishlistItem.name)
     private readonly wishlistItemModel: Model<WishlistItemDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listForUser(userId: string): Promise<WishlistItem[]> {
@@ -115,6 +117,75 @@ export class WishlistService {
     return item;
   }
 
+  async notifyLowStockForDrop(input: {
+    dropId: Types.ObjectId | string;
+    title: string;
+    currentQuantity: number;
+    maxQuantity: number;
+  }): Promise<{ notifiedCount: number }> {
+    if (!this.isLowStock(input)) {
+      return { notifiedCount: 0 };
+    }
+
+    const dropId = this.toObjectId(input.dropId.toString());
+    const candidates = await this.wishlistItemModel
+      .find({
+        dropId,
+        status: WishlistItemStatus.Active,
+        notifyLowStock: true,
+        lowStockNotifiedAt: {
+          $exists: false,
+        },
+      })
+      .exec();
+
+    let notifiedCount = 0;
+
+    for (const candidate of candidates) {
+      const claimed = await this.wishlistItemModel
+        .findOneAndUpdate(
+          {
+            _id: candidate._id,
+            lowStockNotifiedAt: {
+              $exists: false,
+            },
+          },
+          {
+            $set: {
+              lowStockNotifiedAt: new Date(),
+            },
+          },
+          {
+            new: true,
+          },
+        )
+        .exec();
+
+      if (!claimed) {
+        continue;
+      }
+
+      await this.notificationsService.createInterestNotification({
+        userId: candidate.userId,
+        type: 'wishlist.low_stock',
+        title: 'Wishlist drop is almost sold out',
+        message: `${input.title} has 20% or less available quantity left.`,
+        relatedEntityType: 'drop',
+        relatedEntityId: dropId,
+        metadata: {
+          dropId: dropId.toHexString(),
+          currentQuantity: input.currentQuantity,
+          maxQuantity: input.maxQuantity,
+          remainingQuantity: input.maxQuantity - input.currentQuantity,
+        },
+      });
+
+      notifiedCount += 1;
+    }
+
+    return { notifiedCount };
+  }
+
   private toWishlistUpdate(input: UpdateWishlistItemDto): Partial<WishlistItem> {
     const update: Partial<WishlistItem> = {};
 
@@ -129,6 +200,14 @@ export class WishlistService {
     }
 
     return update;
+  }
+
+  private isLowStock(input: { currentQuantity: number; maxQuantity: number }): boolean {
+    if (input.maxQuantity <= 0) {
+      return false;
+    }
+
+    return input.maxQuantity - input.currentQuantity <= input.maxQuantity * 0.2;
   }
 
   private toObjectId(value: string): Types.ObjectId {

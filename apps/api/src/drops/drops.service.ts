@@ -5,6 +5,7 @@ import { Model, Types } from 'mongoose';
 import { AuditRequestContext, AuditService } from '../audit/audit.service';
 import { Design, DesignDocument } from '../designs/schemas/design.schema';
 import type { PublicUser } from '../users/users.service';
+import { WishlistService } from '../wishlist/wishlist.service';
 import { CreateDropDto } from './dto/create-drop.dto';
 import { UpdateDropDto } from './dto/update-drop.dto';
 import { Drop, DropDocument } from './schemas/drop.schema';
@@ -40,6 +41,7 @@ export class DropsService {
     @InjectModel(Drop.name) private readonly dropModel: Model<DropDocument>,
     @InjectModel(Design.name) private readonly designModel: Model<DesignDocument>,
     private readonly auditService: AuditService,
+    private readonly wishlistService: WishlistService,
   ) {}
 
   async createAdminDrop(admin: PublicUser, dto: CreateDropDto): Promise<DropDocument> {
@@ -186,6 +188,7 @@ export class DropsService {
     }
 
     await this.applyQuantityStatusRules(updated, previousStatus, request);
+    await this.safelyNotifyLowStock(updated);
     return updated;
   }
 
@@ -344,6 +347,19 @@ export class DropsService {
       },
       request,
     });
+  }
+
+  private async safelyNotifyLowStock(drop: DropDocument): Promise<void> {
+    try {
+      await this.wishlistService.notifyLowStockForDrop({
+        dropId: drop._id,
+        title: drop.title,
+        currentQuantity: drop.currentQuantity,
+        maxQuantity: drop.maxQuantity,
+      });
+    } catch {
+      return undefined;
+    }
   }
 
   private validateDropInput(dto: CreateDropDto): void {

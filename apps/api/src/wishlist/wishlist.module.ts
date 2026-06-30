@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { WishlistItem, WishlistItemSchema } from './schemas/wishlist-item.schema';
 import { WishlistController } from './wishlist.controller';
 import { WishlistService } from './wishlist.service';
@@ -8,6 +9,7 @@ import { WishlistService } from './wishlist.service';
 @Module({
   imports: [
     AuthModule,
+    NotificationsModule,
     MongooseModule.forFeature([
       {
         name: WishlistItem.name,

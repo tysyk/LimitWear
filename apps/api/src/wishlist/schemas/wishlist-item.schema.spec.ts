@@ -15,6 +15,7 @@ describe('WishlistItemSchema', () => {
     expect(WishlistItemSchema.path('status').options.default).toBe(WishlistItemStatus.Active);
     expect(WishlistItemSchema.path('notifyLowStock').options.default).toBe(true);
     expect(WishlistItemSchema.path('notifySecondChance').options.default).toBe(true);
+    expect(WishlistItemSchema.path('lowStockNotifiedAt')).toBeDefined();
   });
 
   it('indexes wishlist ownership and notification queues', () => {
@@ -22,7 +23,7 @@ describe('WishlistItemSchema', () => {
       expect.arrayContaining([
         [{ userId: 1, dropId: 1 }, expect.objectContaining({ unique: true })],
         [{ userId: 1, status: 1 }, expect.any(Object)],
-        [{ dropId: 1, status: 1, notifyLowStock: 1 }, expect.any(Object)],
+        [{ dropId: 1, status: 1, notifyLowStock: 1, lowStockNotifiedAt: 1 }, expect.any(Object)],
         [{ dropId: 1, status: 1, notifySecondChance: 1 }, expect.any(Object)],
       ]),
     );

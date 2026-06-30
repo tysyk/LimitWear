@@ -37,6 +37,9 @@ describe('DropsService', () => {
     recordAdminAction: jest.Mock;
     recordSystemAction: jest.Mock;
   };
+  let wishlistService: {
+    notifyLowStockForDrop: jest.Mock;
+  };
 
   const admin = () => ({
     id: adminId.toHexString(),
@@ -98,10 +101,14 @@ describe('DropsService', () => {
       recordAdminAction: jest.fn().mockResolvedValue({}),
       recordSystemAction: jest.fn().mockResolvedValue({}),
     };
+    wishlistService = {
+      notifyLowStockForDrop: jest.fn().mockResolvedValue({ notifiedCount: 0 }),
+    };
     service = new DropsService(
       dropModel as unknown as Model<DropDocument>,
       designModel as never,
       auditService as never,
+      wishlistService as never,
     );
   });
 
@@ -424,6 +431,12 @@ describe('DropsService', () => {
         new: true,
       },
     );
+    expect(wishlistService.notifyLowStockForDrop).toHaveBeenCalledWith({
+      dropId: updatedDrop._id,
+      title: updatedDrop.title,
+      currentQuantity: updatedDrop.currentQuantity,
+      maxQuantity: updatedDrop.maxQuantity,
+    });
   });
 
   it('moves a drop to guaranteed when confirmed quantity reaches the minimum', async () => {

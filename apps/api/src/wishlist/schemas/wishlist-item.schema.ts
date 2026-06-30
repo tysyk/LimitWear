@@ -47,11 +47,14 @@ export class WishlistItem {
     required: true,
   })
   notifySecondChance!: boolean;
+
+  @Prop()
+  lowStockNotifiedAt?: Date;
 }
 
 export const WishlistItemSchema = SchemaFactory.createForClass(WishlistItem);
 
 WishlistItemSchema.index({ userId: 1, dropId: 1 }, { unique: true });
 WishlistItemSchema.index({ userId: 1, status: 1 });
-WishlistItemSchema.index({ dropId: 1, status: 1, notifyLowStock: 1 });
+WishlistItemSchema.index({ dropId: 1, status: 1, notifyLowStock: 1, lowStockNotifiedAt: 1 });
 WishlistItemSchema.index({ dropId: 1, status: 1, notifySecondChance: 1 });
