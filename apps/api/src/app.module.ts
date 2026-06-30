@@ -14,6 +14,7 @@ import { FilesModule } from './files/files.module';
 import { HealthModule } from './health/health.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PayoutsModule } from './payouts/payouts.module';
 import { ProductionModule } from './production/production.module';
 import { RequestsModule } from './requests/requests.module';
 import { SecondChanceModule } from './second-chance/second-chance.module';
@@ -39,6 +40,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     HealthModule,
     OrdersModule,
     PaymentsModule,
+    PayoutsModule,
     ProductionModule,
     RequestsModule,
     SecondChanceModule,

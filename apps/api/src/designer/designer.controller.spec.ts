@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { DesignerController } from './designer.controller';
 import { DesignsService } from '../designs/designs.service';
 import { FilesService } from '../files/files.service';
+import { PayoutsService } from '../payouts/payouts.service';
 import { RequestsService } from '../requests/requests.service';
 
 describe('DesignerController', () => {
@@ -18,6 +19,7 @@ describe('DesignerController', () => {
     >
   >;
   let filesService: jest.Mocked<Pick<FilesService, 'upload'>>;
+  let payoutsService: jest.Mocked<Pick<PayoutsService, 'listDesignerPayouts'>>;
 
   const request = {
     user: {
@@ -44,10 +46,14 @@ describe('DesignerController', () => {
     filesService = {
       upload: jest.fn(),
     };
+    payoutsService = {
+      listDesignerPayouts: jest.fn(),
+    };
     controller = new DesignerController(
       requestsService as unknown as RequestsService,
       designsService as unknown as DesignsService,
       filesService as unknown as FilesService,
+      payoutsService as unknown as PayoutsService,
     );
   });
 
@@ -140,5 +146,12 @@ describe('DesignerController', () => {
       id: 'design-id',
     });
     expect(designsService.submitDesignerDesign).toHaveBeenCalledWith(request.user, 'design-id');
+  });
+
+  it('delegates designer payout listing to the payouts service', async () => {
+    payoutsService.listDesignerPayouts.mockResolvedValue([]);
+
+    await expect(controller.findPayouts(request)).resolves.toEqual([]);
+    expect(payoutsService.listDesignerPayouts).toHaveBeenCalledWith(request.user.id);
   });
 });

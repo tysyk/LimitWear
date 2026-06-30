@@ -27,6 +27,7 @@ import { RequestsService } from '../requests/requests.service';
 import { Permission } from '@limitwear/shared';
 import { FilesService, UploadedFileData } from '../files/files.service';
 import { FileAssetCategory, FileVisibility } from '../files/schemas/file-asset.schema';
+import { PayoutsService } from '../payouts/payouts.service';
 import { ApplyDesignerDto } from './dto/apply-designer.dto';
 
 @ApiTags('Designer')
@@ -38,6 +39,7 @@ export class DesignerController {
     private readonly requestsService: RequestsService,
     private readonly designsService: DesignsService,
     private readonly filesService: FilesService,
+    private readonly payoutsService: PayoutsService,
   ) {}
 
   @ApiOperation({ summary: 'Submit a designer application request' })
@@ -142,6 +144,13 @@ export class DesignerController {
   @Post('designs/:id/submit')
   submitDesign(@Param('id') designId: string, @Req() request: AuthenticatedRequest) {
     return this.designsService.submitDesignerDesign(request.user, designId);
+  }
+
+  @ApiOperation({ summary: 'List current designer payouts' })
+  @RequirePermissions(Permission.DesignerPayoutsRead)
+  @Get('payouts')
+  findPayouts(@Req() request: AuthenticatedRequest) {
+    return this.payoutsService.listDesignerPayouts(request.user.id);
   }
 
   private getDesignFileCategory(category: string): FileAssetCategory {
