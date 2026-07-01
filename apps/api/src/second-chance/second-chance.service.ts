@@ -66,9 +66,27 @@ export class SecondChanceService {
       update.soldAt = new Date();
     }
 
-    const listing = await this.listingModel
-      .findByIdAndUpdate(this.toObjectId(id), { $set: update }, { new: true })
-      .exec();
+    const objectId = this.toObjectId(id);
+    const listing =
+      input.status === SecondChanceListingStatus.Sold
+        ? await this.listingModel
+            .findOneAndUpdate(
+              {
+                _id: objectId,
+                status: {
+                  $in: [
+                    SecondChanceListingStatus.PublicAvailable,
+                    SecondChanceListingStatus.Reserved,
+                  ],
+                },
+              },
+              { $set: update },
+              { new: true },
+            )
+            .exec()
+        : await this.listingModel
+            .findByIdAndUpdate(objectId, { $set: update }, { new: true })
+            .exec();
 
     if (!listing) {
       throw new NotFoundException('Second Chance listing was not found.');

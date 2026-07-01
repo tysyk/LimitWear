@@ -22,6 +22,7 @@ describe('UsersService', () => {
     lastName: 'User',
     phone: '+380000000000',
     telegramUsername: undefined,
+    telegramId: undefined,
     isEmailVerified: false,
     isPhoneVerified: false,
     lastLoginAt: undefined,
@@ -44,6 +45,7 @@ describe('UsersService', () => {
       lastName: 'User',
       phone: '+380000000000',
       telegramUsername: undefined,
+      telegramId: undefined,
       isEmailVerified: false,
       isPhoneVerified: false,
       lastLoginAt: undefined,
@@ -69,11 +71,49 @@ describe('UsersService', () => {
       lastName: 'User',
       phone: '+380000000000',
       telegramUsername: undefined,
+      telegramId: undefined,
       isEmailVerified: false,
       isPhoneVerified: false,
       lastLoginAt: undefined,
     });
     expect(userModel.findById).toHaveBeenCalledWith('user-id');
+  });
+
+  it('finds active admins for critical alerts', async () => {
+    const adminDocument = {
+      ...createUserDocument(),
+      id: 'admin-id',
+      email: 'admin@example.com',
+      role: UserRole.Admin,
+    };
+    const userModel = {
+      find: jest.fn().mockReturnValue(createQuery([adminDocument])),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.findActiveAdmins()).resolves.toEqual([
+      {
+        id: 'admin-id',
+        email: 'admin@example.com',
+        role: UserRole.Admin,
+        permissions: [],
+        status: UserStatus.Active,
+        firstName: 'Test',
+        lastName: 'User',
+        phone: '+380000000000',
+        telegramUsername: undefined,
+        telegramId: undefined,
+        isEmailVerified: false,
+        isPhoneVerified: false,
+        lastLoginAt: undefined,
+      },
+    ]);
+    expect(userModel.find).toHaveBeenCalledWith({
+      role: UserRole.Admin,
+      status: UserStatus.Active,
+    });
   });
 
   it('finds users with passwordHash only when explicitly requested', async () => {
@@ -98,6 +138,7 @@ describe('UsersService', () => {
       lastName: 'User',
       phone: '+380000000000',
       telegramUsername: undefined,
+      telegramId: undefined,
       isEmailVerified: false,
       isPhoneVerified: false,
       lastLoginAt: undefined,
@@ -128,6 +169,7 @@ describe('UsersService', () => {
       lastName: 'User',
       phone: '+380000000000',
       telegramUsername: undefined,
+      telegramId: undefined,
       isEmailVerified: false,
       isPhoneVerified: false,
       lastLoginAt,
@@ -150,6 +192,64 @@ describe('UsersService', () => {
     await expect(service.updateLastLoginAt('missing-user-id', new Date())).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  it('links a Telegram account to the user profile', async () => {
+    const linkedUser = {
+      ...createUserDocument(),
+      telegramId: '123456',
+      telegramUsername: 'limitwear_user',
+    };
+    const userModel = {
+      findByIdAndUpdate: jest.fn().mockReturnValue(createQuery(linkedUser)),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(
+      service.linkTelegramAccount('user-id', {
+        telegramId: ' 123456 ',
+        telegramUsername: ' limitwear_user ',
+      }),
+    ).resolves.toEqual({
+      id: 'user-id',
+      email: 'user@example.com',
+      role: UserRole.User,
+      permissions: [],
+      status: UserStatus.Active,
+      firstName: 'Test',
+      lastName: 'User',
+      phone: '+380000000000',
+      telegramUsername: 'limitwear_user',
+      telegramId: '123456',
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      lastLoginAt: undefined,
+    });
+    expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      'user-id',
+      {
+        telegramId: '123456',
+        telegramUsername: 'limitwear_user',
+      },
+      { new: true },
+    );
+  });
+
+  it('throws NotFoundException when linking Telegram to a missing user', async () => {
+    const userModel = {
+      findByIdAndUpdate: jest.fn().mockReturnValue(createQuery(null)),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(
+      service.linkTelegramAccount('missing-user-id', {
+        telegramId: '123456',
+      }),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('creates public users without exposing passwordHash', async () => {

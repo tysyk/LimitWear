@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { NotificationCategory, NotificationChannel, NotificationStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
@@ -11,6 +11,16 @@ import {
   NotificationSettings,
   NotificationSettingsDocument,
 } from './schemas/notification-settings.schema';
+import {
+  EmailDeliveryResult,
+  EmailProviderService,
+  SendTransactionalEmailInput,
+} from './email-provider.service';
+import {
+  SendTelegramMessageInput,
+  TelegramDeliveryResult,
+  TelegramProviderService,
+} from './telegram-provider.service';
 
 export interface CreateNotificationInput {
   userId: Types.ObjectId | string;
@@ -30,11 +40,15 @@ export interface ListNotificationsInput {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
     @InjectModel(NotificationSettings.name)
     private readonly notificationSettingsModel: Model<NotificationSettingsDocument>,
+    private readonly emailProviderService: EmailProviderService,
+    private readonly telegramProviderService: TelegramProviderService,
   ) {}
 
   async createForUser(input: CreateNotificationInput): Promise<NotificationDocument> {
@@ -88,12 +102,32 @@ export class NotificationsService {
     });
   }
 
-  sendEmail(): Promise<void> {
-    return Promise.resolve();
+  async sendEmail(input: SendTransactionalEmailInput): Promise<EmailDeliveryResult> {
+    try {
+      return await this.emailProviderService.sendTransactional(input);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown email delivery failure';
+      this.logger.error(`Transactional email failed safely: ${message}`);
+
+      return {
+        status: 'failed',
+        error: 'email_delivery_exception',
+      };
+    }
   }
 
-  sendTelegram(): Promise<void> {
-    return Promise.resolve();
+  async sendTelegram(input: SendTelegramMessageInput): Promise<TelegramDeliveryResult> {
+    try {
+      return await this.telegramProviderService.sendMessage(input);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown telegram delivery failure';
+      this.logger.error(`Telegram message failed safely: ${message}`);
+
+      return {
+        status: 'failed',
+        error: 'telegram_delivery_exception',
+      };
+    }
   }
 
   async safelyCreateServiceNotification(

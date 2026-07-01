@@ -22,6 +22,7 @@ export interface PublicUser {
   lastName?: string;
   phone?: string;
   telegramUsername?: string;
+  telegramId?: string;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   lastLoginAt?: Date;
@@ -29,6 +30,11 @@ export interface PublicUser {
 
 export interface UserWithPasswordHash extends PublicUser {
   passwordHash: string;
+}
+
+export interface LinkTelegramAccountInput {
+  telegramId: string;
+  telegramUsername?: string;
 }
 
 @Injectable()
@@ -43,6 +49,17 @@ export class UsersService {
   async findById(userId: string): Promise<PublicUser | null> {
     const user = await this.userModel.findById(userId).exec();
     return user ? this.toPublicUser(user) : null;
+  }
+
+  async findActiveAdmins(): Promise<PublicUser[]> {
+    const users = await this.userModel
+      .find({
+        role: UserRole.Admin,
+        status: UserStatus.Active,
+      })
+      .exec();
+
+    return users.map((user) => this.toPublicUser(user));
   }
 
   async findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHash | null> {
@@ -68,6 +85,25 @@ export class UsersService {
 
   async updateRole(userId: string, role: UserRole): Promise<PublicUser> {
     const user = await this.userModel.findByIdAndUpdate(userId, { role }, { new: true }).exec();
+
+    if (!user) {
+      throw new NotFoundException('User was not found');
+    }
+
+    return this.toPublicUser(user);
+  }
+
+  async linkTelegramAccount(userId: string, input: LinkTelegramAccountInput): Promise<PublicUser> {
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        {
+          telegramId: input.telegramId.trim(),
+          telegramUsername: input.telegramUsername?.trim() || undefined,
+        },
+        { new: true },
+      )
+      .exec();
 
     if (!user) {
       throw new NotFoundException('User was not found');
@@ -111,6 +147,7 @@ export class UsersService {
       lastName: user.lastName,
       phone: user.phone,
       telegramUsername: user.telegramUsername,
+      telegramId: user.telegramId,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
       lastLoginAt: user.lastLoginAt,

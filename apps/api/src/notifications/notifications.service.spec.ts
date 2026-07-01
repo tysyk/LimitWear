@@ -1,6 +1,8 @@
 import { NotificationCategory, NotificationChannel, NotificationStatus } from '@limitwear/shared';
 import { Model, Types } from 'mongoose';
+import { EmailProviderService } from './email-provider.service';
 import { NotificationsService } from './notifications.service';
+import { TelegramProviderService } from './telegram-provider.service';
 import { NotificationDocument } from './schemas/notification.schema';
 import { NotificationSettingsDocument } from './schemas/notification-settings.schema';
 
@@ -16,6 +18,12 @@ describe('NotificationsService', () => {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
   };
+  let emailProviderService: {
+    sendTransactional: jest.Mock;
+  };
+  let telegramProviderService: {
+    sendMessage: jest.Mock;
+  };
 
   beforeEach(() => {
     notificationModel = {
@@ -28,9 +36,17 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
+    emailProviderService = {
+      sendTransactional: jest.fn(),
+    };
+    telegramProviderService = {
+      sendMessage: jest.fn(),
+    };
     service = new NotificationsService(
       notificationModel as unknown as Model<NotificationDocument>,
       notificationSettingsModel as unknown as Model<NotificationSettingsDocument>,
+      emailProviderService as unknown as EmailProviderService,
+      telegramProviderService as unknown as TelegramProviderService,
     );
   });
 
@@ -106,6 +122,79 @@ describe('NotificationsService', () => {
         message: 'Please try another card.',
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it('sends transactional email through the provider abstraction', async () => {
+    emailProviderService.sendTransactional.mockResolvedValue({
+      status: 'sent',
+      providerMessageId: 'provider-message-id',
+    });
+
+    await expect(
+      service.sendEmail({
+        to: 'customer@example.com',
+        subject: 'Order update',
+        text: 'Your order was updated.',
+      }),
+    ).resolves.toEqual({
+      status: 'sent',
+      providerMessageId: 'provider-message-id',
+    });
+    expect(emailProviderService.sendTransactional).toHaveBeenCalledWith({
+      to: 'customer@example.com',
+      subject: 'Order update',
+      text: 'Your order was updated.',
+    });
+  });
+
+  it('does not break the caller when email provider throws', async () => {
+    emailProviderService.sendTransactional.mockRejectedValue(new Error('provider timeout'));
+
+    await expect(
+      service.sendEmail({
+        to: 'customer@example.com',
+        subject: 'Order update',
+        text: 'Your order was updated.',
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      error: 'email_delivery_exception',
+    });
+  });
+
+  it('sends Telegram messages through the provider abstraction', async () => {
+    telegramProviderService.sendMessage.mockResolvedValue({
+      status: 'sent',
+      providerMessageId: '42',
+    });
+
+    await expect(
+      service.sendTelegram({
+        telegramId: '123456',
+        text: 'Order update',
+      }),
+    ).resolves.toEqual({
+      status: 'sent',
+      providerMessageId: '42',
+    });
+    expect(telegramProviderService.sendMessage).toHaveBeenCalledWith({
+      telegramId: '123456',
+      text: 'Order update',
+    });
+  });
+
+  it('does not break the caller when Telegram provider throws', async () => {
+    telegramProviderService.sendMessage.mockRejectedValue(new Error('telegram timeout'));
+
+    await expect(
+      service.sendTelegram({
+        telegramId: '123456',
+        text: 'Order update',
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      error: 'telegram_delivery_exception',
+    });
   });
 
   it('lists notifications with optional status filters', async () => {

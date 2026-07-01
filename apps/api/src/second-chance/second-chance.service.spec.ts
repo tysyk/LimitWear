@@ -12,6 +12,7 @@ describe('SecondChanceService', () => {
     create: jest.Mock;
     find: jest.Mock;
     findByIdAndUpdate: jest.Mock;
+    findOneAndUpdate: jest.Mock;
   };
 
   const dropId = '6674b275c08ff9a9c9a4b001';
@@ -22,6 +23,7 @@ describe('SecondChanceService', () => {
       create: jest.fn(),
       find: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn(),
     };
     service = new SecondChanceService(
       listingModel as unknown as Model<SecondChanceListingDocument>,
@@ -108,19 +110,54 @@ describe('SecondChanceService', () => {
 
   it('marks listings sold with soldAt', async () => {
     const updated = { id: listingId, status: SecondChanceListingStatus.Sold };
-    listingModel.findByIdAndUpdate.mockReturnValue({
+    listingModel.findOneAndUpdate.mockReturnValue({
       exec: jest.fn().mockResolvedValue(updated),
     });
 
     await expect(service.markSold(listingId)).resolves.toBe(updated);
 
-    const [, update] = listingModel.findByIdAndUpdate.mock.calls[0] as [
-      Types.ObjectId,
+    const [filter, update] = listingModel.findOneAndUpdate.mock.calls[0] as [
+      {
+        _id: Types.ObjectId;
+        status: { $in: SecondChanceListingStatus[] };
+      },
       { $set: { status: SecondChanceListingStatus; soldAt: Date } },
       { new: true },
     ];
+    expect(filter).toEqual({
+      _id: new Types.ObjectId(listingId),
+      status: {
+        $in: [SecondChanceListingStatus.PublicAvailable, SecondChanceListingStatus.Reserved],
+      },
+    });
     expect(update.$set.status).toBe(SecondChanceListingStatus.Sold);
     expect(update.$set.soldAt).toBeInstanceOf(Date);
+  });
+
+  it('prevents selling a listing twice or from an unavailable status', async () => {
+    listingModel.findOneAndUpdate.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+
+    await expect(service.markSold(listingId)).rejects.toThrow(NotFoundException);
+
+    const [filter, update, options] = listingModel.findOneAndUpdate.mock.calls[0] as [
+      {
+        _id: Types.ObjectId;
+        status: { $in: SecondChanceListingStatus[] };
+      },
+      { $set: { status: SecondChanceListingStatus; soldAt: Date } },
+      { new: true },
+    ];
+    expect(filter).toEqual({
+      _id: new Types.ObjectId(listingId),
+      status: {
+        $in: [SecondChanceListingStatus.PublicAvailable, SecondChanceListingStatus.Reserved],
+      },
+    });
+    expect(update.$set.status).toBe(SecondChanceListingStatus.Sold);
+    expect(update.$set.soldAt).toBeInstanceOf(Date);
+    expect(options).toEqual({ new: true });
   });
 
   it('rejects invalid ids and missing priority dates', async () => {
