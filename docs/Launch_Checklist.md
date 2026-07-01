@@ -11,14 +11,14 @@ This checklist supports LW-114 manual launch sign-off. It must be completed afte
 
 ## Environment and Infrastructure
 
-| Check                                                                     | Status  | Evidence |
-| ------------------------------------------------------------------------- | ------- | -------- |
-| Frontend production domain opens over HTTPS.                              | Pending |          |
-| Backend production API domain opens over HTTPS.                           | Pending |          |
-| Backend `GET /health` returns `status: ok`.                               | Pending |          |
-| Production `CORS_ORIGIN` is restricted to the production frontend origin. | Pending |          |
-| Production secrets are configured in hosting secret storage only.         | Pending |          |
-| CI/CD verification passes before deployment.                              | Pending |          |
+| Check                                                                      | Status  | Evidence |
+| -------------------------------------------------------------------------- | ------- | -------- |
+| Frontend production domain opens over HTTPS.                               | Pending |          |
+| Backend production API domain opens over HTTPS.                            | Pending |          |
+| Backend `GET /health` returns `status: ok`.                                | Pending |          |
+| Production `CORS_ORIGINS` is restricted to the production frontend origin. | Pending |          |
+| Production secrets are configured in hosting secret storage only.          | Pending |          |
+| CI/CD verification passes before deployment.                               | Pending |          |
 
 ## Database, Storage, and Backups
 
