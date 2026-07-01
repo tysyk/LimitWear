@@ -2,6 +2,7 @@ import { NotificationCategory, NotificationChannel, NotificationStatus } from '@
 import { Model, Types } from 'mongoose';
 import { EmailProviderService } from './email-provider.service';
 import { NotificationsService } from './notifications.service';
+import { TelegramProviderService } from './telegram-provider.service';
 import { NotificationDocument } from './schemas/notification.schema';
 import { NotificationSettingsDocument } from './schemas/notification-settings.schema';
 
@@ -20,6 +21,9 @@ describe('NotificationsService', () => {
   let emailProviderService: {
     sendTransactional: jest.Mock;
   };
+  let telegramProviderService: {
+    sendMessage: jest.Mock;
+  };
 
   beforeEach(() => {
     notificationModel = {
@@ -35,10 +39,14 @@ describe('NotificationsService', () => {
     emailProviderService = {
       sendTransactional: jest.fn(),
     };
+    telegramProviderService = {
+      sendMessage: jest.fn(),
+    };
     service = new NotificationsService(
       notificationModel as unknown as Model<NotificationDocument>,
       notificationSettingsModel as unknown as Model<NotificationSettingsDocument>,
       emailProviderService as unknown as EmailProviderService,
+      telegramProviderService as unknown as TelegramProviderService,
     );
   });
 
@@ -151,6 +159,41 @@ describe('NotificationsService', () => {
     ).resolves.toEqual({
       status: 'failed',
       error: 'email_delivery_exception',
+    });
+  });
+
+  it('sends Telegram messages through the provider abstraction', async () => {
+    telegramProviderService.sendMessage.mockResolvedValue({
+      status: 'sent',
+      providerMessageId: '42',
+    });
+
+    await expect(
+      service.sendTelegram({
+        telegramId: '123456',
+        text: 'Order update',
+      }),
+    ).resolves.toEqual({
+      status: 'sent',
+      providerMessageId: '42',
+    });
+    expect(telegramProviderService.sendMessage).toHaveBeenCalledWith({
+      telegramId: '123456',
+      text: 'Order update',
+    });
+  });
+
+  it('does not break the caller when Telegram provider throws', async () => {
+    telegramProviderService.sendMessage.mockRejectedValue(new Error('telegram timeout'));
+
+    await expect(
+      service.sendTelegram({
+        telegramId: '123456',
+        text: 'Order update',
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      error: 'telegram_delivery_exception',
     });
   });
 

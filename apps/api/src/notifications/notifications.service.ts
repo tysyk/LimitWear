@@ -16,6 +16,11 @@ import {
   EmailProviderService,
   SendTransactionalEmailInput,
 } from './email-provider.service';
+import {
+  SendTelegramMessageInput,
+  TelegramDeliveryResult,
+  TelegramProviderService,
+} from './telegram-provider.service';
 
 export interface CreateNotificationInput {
   userId: Types.ObjectId | string;
@@ -43,6 +48,7 @@ export class NotificationsService {
     @InjectModel(NotificationSettings.name)
     private readonly notificationSettingsModel: Model<NotificationSettingsDocument>,
     private readonly emailProviderService: EmailProviderService,
+    private readonly telegramProviderService: TelegramProviderService,
   ) {}
 
   async createForUser(input: CreateNotificationInput): Promise<NotificationDocument> {
@@ -110,8 +116,18 @@ export class NotificationsService {
     }
   }
 
-  sendTelegram(): Promise<void> {
-    return Promise.resolve();
+  async sendTelegram(input: SendTelegramMessageInput): Promise<TelegramDeliveryResult> {
+    try {
+      return await this.telegramProviderService.sendMessage(input);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown telegram delivery failure';
+      this.logger.error(`Telegram message failed safely: ${message}`);
+
+      return {
+        status: 'failed',
+        error: 'telegram_delivery_exception',
+      };
+    }
   }
 
   async safelyCreateServiceNotification(
