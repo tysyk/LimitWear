@@ -9,6 +9,7 @@ This runbook supports LW-115 production release. Use it only after the launch ch
 - `docs/Launch_Checklist.md` has no blocking `Fail` items.
 - Production environment setup is complete according to `docs/Production_Environment_Runbook.md`.
 - Domain and email setup are complete according to `docs/Domain_Email_Runbook.md`.
+- Telegram bot setup is complete according to `docs/Telegram_Bot_Runbook.md`.
 - Backup restore drill is recorded according to `docs/Backups_Runbook.md`.
 - Rollback owner and support contact are available during the release window.
 

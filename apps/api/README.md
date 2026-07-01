@@ -46,6 +46,15 @@ fails unless required secrets and public URLs are configured with real values:
 Production also requires `COOKIE_SECURE=true`, rejects `CORS_ORIGINS=*`, and
 rejects placeholder values such as `replace-with-*` or `<account-id>`.
 
+Launch-facing external notifications are configured separately:
+
+- Email: `EMAIL_PROVIDER_API_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`
+- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_API_BASE_URL`
+
+Email and Telegram delivery wrappers are failure-safe: provider failures are
+logged and returned as failed/skipped results so order and notification flows do
+not crash.
+
 Swagger docs are enabled by default outside production. In production, `/docs`
 is disabled unless `SWAGGER_ENABLED=true` is set explicitly.
 

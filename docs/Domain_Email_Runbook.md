@@ -20,7 +20,7 @@ Configure and verify:
 - Enforce HTTPS for both frontend and backend domains.
 - Redirect plain HTTP traffic to HTTPS.
 - Keep dev/staging domains separate from production domains.
-- Set production `CORS_ORIGIN` to the final HTTPS frontend origin.
+- Set production `CORS_ORIGINS` to the final HTTPS frontend origin.
 
 ## Sender Addresses
 

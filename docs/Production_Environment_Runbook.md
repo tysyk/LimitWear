@@ -26,13 +26,18 @@ Configure these in the backend host secret store:
 
 - `NODE_ENV=production`
 - `PORT`
+- `CLIENT_URL`
+- `CORS_ORIGINS`
 - `DATABASE_URL`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `CORS_ORIGIN`
+- `JWT_SECRET`
 - `MONO_TOKEN`
+- `MONO_WEBHOOK_URL`
 - `MONO_WEBHOOK_SECRET`
 - `NOVA_POSHTA_API_KEY`
+- `NOVA_POSHTA_API_URL`
+- `EMAIL_PROVIDER_API_URL`
+- `EMAIL_PROVIDER_API_KEY`
+- `EMAIL_FROM`
 - `S3_ENDPOINT`
 - `S3_REGION`
 - `S3_BUCKET`
@@ -41,8 +46,7 @@ Configure these in the backend host secret store:
 - `S3_PUBLIC_BASE_URL`
 - `S3_SIGNED_URL_EXPIRES_IN_SECONDS`
 - `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_ADMIN_CHAT_ID`
-- Email provider credentials after LW-111 is complete.
+- `TELEGRAM_BOT_API_BASE_URL`
 
 Use `apps/api/.env.example` as the field reference, but never copy placeholder values into production.
 

@@ -90,6 +90,15 @@ npm run verify
 
 The script checks formatting, linting, TypeScript, API unit/e2e tests, and API/web builds.
 
+## Operational Docs
+
+- [Production environment runbook](docs/Production_Environment_Runbook.md)
+- [Domain and email runbook](docs/Domain_Email_Runbook.md)
+- [Telegram bot runbook](docs/Telegram_Bot_Runbook.md)
+- [Backups runbook](docs/Backups_Runbook.md)
+- [Launch checklist](docs/Launch_Checklist.md)
+- [Production release runbook](docs/Production_Release_Runbook.md)
+
 ## License
 
 All rights reserved.
