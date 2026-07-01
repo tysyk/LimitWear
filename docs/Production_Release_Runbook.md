@@ -20,9 +20,9 @@ This runbook supports LW-115 production release. Use it only after the launch ch
 3. Pull the latest `main` locally and confirm the release commit.
 4. Confirm CI is green for the commit being released.
 5. Deploy the backend first.
-6. Run backend smoke checks.
+6. Run backend smoke checks with `npm run smoke:production`.
 7. Deploy the frontend.
-8. Run full production smoke checks.
+8. Run full production smoke checks with the final backend and frontend URLs.
 9. Watch logs and admin alerts for at least 30 minutes.
 10. Mark the internal launch as complete only after smoke checks and monitoring are clean.
 
@@ -49,6 +49,14 @@ This runbook supports LW-115 production release. Use it only after the launch ch
 | No user-facing console or runtime errors appear in the smoke path. | Pending |          |
 
 ## Production Smoke Tests
+
+Run the automated smoke command first:
+
+```bash
+npm run smoke:production -- --api-url https://api.example.com --web-url https://example.com
+```
+
+Use `SMOKE_WEB_ROUTES` or `--web-routes` to add safe public routes for the release.
 
 | Flow                                         | Expected result                                         | Status  |
 | -------------------------------------------- | ------------------------------------------------------- | ------- |
