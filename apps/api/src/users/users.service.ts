@@ -45,6 +45,17 @@ export class UsersService {
     return user ? this.toPublicUser(user) : null;
   }
 
+  async findActiveAdmins(): Promise<PublicUser[]> {
+    const users = await this.userModel
+      .find({
+        role: UserRole.Admin,
+        status: UserStatus.Active,
+      })
+      .exec();
+
+    return users.map((user) => this.toPublicUser(user));
+  }
+
   async findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHash | null> {
     const user = await this.userModel
       .findOne({ email: this.normalizeEmail(email) })

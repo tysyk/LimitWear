@@ -76,6 +76,42 @@ describe('UsersService', () => {
     expect(userModel.findById).toHaveBeenCalledWith('user-id');
   });
 
+  it('finds active admins for critical alerts', async () => {
+    const adminDocument = {
+      ...createUserDocument(),
+      id: 'admin-id',
+      email: 'admin@example.com',
+      role: UserRole.Admin,
+    };
+    const userModel = {
+      find: jest.fn().mockReturnValue(createQuery([adminDocument])),
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+    const service = new UsersService(userModel as never);
+
+    await expect(service.findActiveAdmins()).resolves.toEqual([
+      {
+        id: 'admin-id',
+        email: 'admin@example.com',
+        role: UserRole.Admin,
+        permissions: [],
+        status: UserStatus.Active,
+        firstName: 'Test',
+        lastName: 'User',
+        phone: '+380000000000',
+        telegramUsername: undefined,
+        isEmailVerified: false,
+        isPhoneVerified: false,
+        lastLoginAt: undefined,
+      },
+    ]);
+    expect(userModel.find).toHaveBeenCalledWith({
+      role: UserRole.Admin,
+      status: UserStatus.Active,
+    });
+  });
+
   it('finds users with passwordHash only when explicitly requested', async () => {
     const userDocument = {
       ...createUserDocument(),
