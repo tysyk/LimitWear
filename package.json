@@ -13,8 +13,9 @@
     "test:e2e:api": "npm run test:e2e --prefix apps/api",
     "build:api": "npm run build --prefix apps/api",
     "build:web": "npm run build --prefix apps/web",
-    "format": "prettier --write package.json .prettierrc.json AGENTS.md README.md \".vscode/*.json\" \"apps/api/**/*.{ts,json,md,mjs}\" \"apps/web/*.{json,md,mjs}\" apps/web/next.config.ts \"apps/web/src/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,json,md}\"",
-    "format:check": "prettier --check package.json .prettierrc.json AGENTS.md README.md \".vscode/*.json\" \"apps/api/**/*.{ts,json,md,mjs}\" \"apps/web/*.{json,md,mjs}\" apps/web/next.config.ts \"apps/web/src/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,json,md}\"",
+    "smoke:production": "node scripts/production-smoke.mjs",
+    "format": "prettier --write package.json .prettierrc.json AGENTS.md README.md \".vscode/*.json\" \"apps/api/**/*.{ts,json,md,mjs}\" \"apps/web/*.{json,md,mjs}\" apps/web/next.config.ts \"apps/web/src/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,json,md}\" \"scripts/*.mjs\"",
+    "format:check": "prettier --check package.json .prettierrc.json AGENTS.md README.md \".vscode/*.json\" \"apps/api/**/*.{ts,json,md,mjs}\" \"apps/web/*.{json,md,mjs}\" apps/web/next.config.ts \"apps/web/src/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,json,md}\" \"scripts/*.mjs\"",
     "typecheck": "tsc --noEmit -p packages/shared/tsconfig.json && npm run typecheck --prefix apps/api && npm run typecheck --prefix apps/web",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:api && npm run test:e2e:api && npm run build:api && npm run build:web"
   },

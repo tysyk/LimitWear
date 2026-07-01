@@ -90,6 +90,13 @@ npm run verify
 
 The script checks formatting, linting, TypeScript, API unit/e2e tests, and API/web builds.
 
+Run the production smoke check after deployment by passing the live backend and
+frontend URLs:
+
+```bash
+npm run smoke:production -- --api-url https://api.example.com --web-url https://example.com
+```
+
 ## Operational Docs
 
 - [Production environment runbook](docs/Production_Environment_Runbook.md)
